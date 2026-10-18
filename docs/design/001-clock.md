@@ -1,6 +1,6 @@
 # 001 — Clock
 
-**Status:** Agreed · **Updated:** 2026-10-18
+**Status:** Built · **Updated:** 2026-10-18
 
 ## Proposal
 
