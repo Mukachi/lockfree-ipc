@@ -1,6 +1,6 @@
 # 003 — Open-loop load generator
 
-**Status:** Built · **Updated:** 2026-10-18
+**Status:** Measured · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -94,7 +94,7 @@ directly with note 001's method.
 - [x] Round trip
 - [x] JSON `load` block
 - [x] Tests S1–S8, including the stall and fixed-delay SUTs
-- [ ] First run under bench-on; results reviewed here
+- [x] First run under bench-on; results reviewed here
 
 ## Review
 
@@ -109,3 +109,4 @@ directly with note 001's method.
 | 2026-10-18 | Built (partial) | Round trip built, as agreed with Shep: the consumer echoes each message on a second SUT; the producer takes echoes while it waits (and while a send is refused, so neither side can block the other) and records arrival − intended on its own TSC. One-way and round trip come from the same run; the echo work is in both. Tests: every message measured both ways, in order; with a 5 µs delay each way every round trip is ≥ 10 µs and every one-way ≥ 5 µs. Not bench-on, CPUs 2→3: round trip p50 389 ns, one-way 195 ns, almost exactly half; with symmetric paths that puts the 2/3 TSC offset far inside note 001's ±100 ns bound (supporting evidence, not proof). Under TSan the run falls ≈ 200 ms behind and both p50s land in one bucket, so the test checks round trip ≥ one-way, not >. Clean under TSan and ASan/UBSan, compiles for aarch64 |
 | 2026-10-18 | Built (partial) | JSON block (`load_block.hpp`) and `bench/load_bench`: clock flow, the 2→3 pair measured directly, then 100k, 250k, 500k, 1M/s for 10 s of messages each against the one-slot mailbox, echoed. S7 reworded: the clock block has no 2→3 bound, and combining two CPU-0 bounds would double it. A refused rate keeps its reason and the lateness histogram that refused it, and no latency results. `check_load_json.py` checks both kinds on a synthetic file. Smoke run, unfenced: 49 s, all four rates refused for lateness (p99 11–13 µs), exit 1, file complete; pair bound −81 to +113 ns |
 | 2026-10-18 | Built | S4: a test wrapper (`closed_loop`) makes any SUT closed-loop: one message in flight, stamped with its actual send time. Same stalling SUT (1 ms every 100 ms), 1M/s, not bench-on: open-loop p99 333 µs, p99.9 923 µs; closed-loop p99 246 ns, p99.9 265 ns. Both see the stall once, in the max (≈ 1 ms); the closed-loop run's own lateness (p99 367 µs) is the tell. S6 checked in the compiled code: each generator thread body, both variants, calls only `sched_setaffinity` (pinning, before the loop) and `__stack_chk_fail`; SUT, histogram and clock reads are inlined. Fails on a SUT that calls `clock_gettime`, in exactly the threads that call it. TSan found a deadlock in `closed_loop`: it set its in-flight flag after making the message visible, so a fast consumer could clear it first. Natively the window is nanoseconds and the test passed by luck; under TSan it hung every time. Fixed by setting the flag first. Every task but the reviewed run is done |
+| 2026-10-18 | Measured | Reviewed run: `results/load-dev-lnx01-20261018T213858Z.json`. dev-lnx01, bench-on with CPU fence and kernel threads moved, `bench-run`, Release build, one-slot mailbox echoed on a second, producer CPU 2, consumer CPU 3, 10 s of messages per rate, warm-up 10% and at least 100 ms discarded. Pair 2/3 offset bound −92.8 to +84.2 ns (100,000 round trips, converged). 100k/s: one-way p50 223 ns, p99 241, p99.9 163 µs; round trip p50 433 ns, p99 1.16 µs. 250k/s: one-way 223 / 240 ns, p99.9 168 µs; round trip 385 ns / 1.15 µs. 500k/s: one-way 223 / 253 ns, p99.9 188 µs; round trip 409 ns / 1.57 µs. 1M/s refused: lateness p99 1,132 ns > T 1,000 ns. No message out of order; no negative latency. From p99.9 up, lateness, one-way and round trip agree to within 1% at every rate: the tail is the producer being stopped, counted open-loop, not the SUT. On this setup a queue's tail above p99 would measure the machine: the noise-floor meter must measure that floor before queue results are published, and boot-time isolation may be needed. Open: round-trip p99 (1.15–1.57 µs) far above one-way p99 (≈ 240 ns); suspected the producer's echo pick-up, unverified. Clock block: 19 of 87 pairs unconverged; gains show near-misses (a few ticks) and the two-speed effect (200–280 ticks). Spec: S1–S8 pass; S3 confirmed live by the 1M/s refusal |
