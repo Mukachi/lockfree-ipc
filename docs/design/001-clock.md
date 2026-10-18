@@ -137,8 +137,8 @@ Values shown are placeholders, not results.
 - [x] Calibration
 - [x] Overhead measurement
 - [x] Cross-CPU agreement test
-- [ ] Explain the two-speed cross-socket return transfer (Review, 2026-10-18) before the
-      cross-socket bounds are published
+- [x] Characterise the two-speed cross-socket return transfer (Review, 2026-10-18); root
+      cause deferred to the queue work, where cross-socket latency is the measured quantity
 - [ ] JSON `clock` block
 - [ ] Tests for S1–S8, including a forced-refusal test (S1, S2, S4, S7 done)
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
@@ -160,3 +160,5 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built (partial) | Cross-CPU, bench-on run 2, with second-half gain printed: 48 of 87 converged. Gain 0–4 ticks on every same-socket pair; cross-socket mostly ≤ 4, five pairs at 9–18 ticks. The minimums have converged; the one-tick tolerance is below their step size. Tolerance change proposed in Design |
 | 2026-10-18 | Built (partial) | Same run: in 17 of 44 cross-socket pairs, d2 (B → A) was 220–280 ticks (≈ 100–125 ns) lower in the first half than the second, giving widths of ≈ 310 ns against ≈ 425 ns. Pairs fall in runs of consecutive CPUs (76–84), so a machine-wide state is changing over tens of ms; absent in run 1. Bounds stay valid (fenced reads cannot make d2 too small), but the cross-socket figure is not reproducible, and the convergence check, which only looks for a lower second half, misses it. Suspect uncore frequency scaling; to check with turbostat (uncore MHz) during a bench-on run |
 | 2026-10-18 | Agreed | Convergence tolerance changed to 1% of the interval width, approved by Shep. Same machine, not bench-on, after the change: 48 of 87 converged |
+| 2026-10-18 | Built (partial) | Uncore probe (scratch, not committed): 5 sweeps under bench-on with both sockets' uncore frequency sampled every 5 ms. Uncore idles low and takes ≈ 120 ms to ramp from 1.6 to 2.8 GHz; pairs measured during the ramp were ≈ 25% wider (CPU 1: 677 against 537 ticks). bench-on does not control this, and the 1,000-round-trip warm-up (≈ 0.3 ms) does not cover it. Fix: bench-on pins uncore min frequency to 2.8 GHz on both sockets |
+| 2026-10-18 | Built (partial) | Two-speed cross-socket effect: with uncore at 2.8 GHz throughout, 0 of 220 cross-socket pairs were fast, so uncore frequency does not cause it. Memory placement does not decide it either: `numactl --membind=0` gave 0 of 44 fast in one run and 30 of 44 in the next. A machine state that comes and goes during a run; coherence directory or snoop state is the likeliest cause (the ≈ 100 ns gap is about one memory access). Bounds are valid in both modes and each run publishes its own, so the clock proceeds. Also explains bench-on run 1's wider cross-socket widths: the earlier run without bench-on contained fast-mode pairs. Decided with Shep: root cause deferred to the queue work |
