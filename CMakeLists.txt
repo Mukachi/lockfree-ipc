@@ -33,3 +33,24 @@ add_test(NAME overhead_test COMMAND overhead_test)
 add_executable(cross_cpu_test tests/cross_cpu_test.cpp)
 target_link_libraries(cross_cpu_test PRIVATE lfipc Threads::Threads)
 add_test(NAME cross_cpu_test COMMAND cross_cpu_test)
+
+add_executable(json_test tests/json_test.cpp)
+target_link_libraries(json_test PRIVATE lfipc)
+add_test(NAME json_test COMMAND json_test)
+
+add_executable(clock_block_test tests/clock_block_test.cpp)
+target_link_libraries(clock_block_test PRIVATE lfipc Threads::Threads)
+add_test(NAME clock_block_test COMMAND clock_block_test)
+set_tests_properties(clock_block_test PROPERTIES FIXTURES_SETUP clock_json)
+
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+  add_test(NAME check_clock_json
+           COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_clock_json.py
+                   clock_ok.json clock_refused.json)
+  set_tests_properties(check_clock_json PROPERTIES FIXTURES_REQUIRED clock_json)
+endif()
+
+add_executable(clock_bench bench/clock_bench.cpp)
+target_link_libraries(clock_bench PRIVATE lfipc Threads::Threads)
+target_compile_definitions(clock_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")

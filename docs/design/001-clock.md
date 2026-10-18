@@ -98,20 +98,30 @@ flowchart TD
     G --> H[Write clock block to run JSON]
 ```
 
-**Output.** A `clock` block in each run's JSON:
+**Output.** A `clock` block in each run's JSON, written by `write_clock_block()`, which every
+benchmark calls. `bench/clock_bench` runs the flowchart above end to end and writes
+`results/clock-<host>-<UTC time>.json`; it is the program for the reviewed run. The JSON is
+written by a small hand-written writer (`json.hpp`), not a library: the shape is small and fixed,
+and the measurement harness keeps no dependencies. Numbers use `std::to_chars`, so they read back
+to the same value; strings are escaped.
 
 ```json
 "clock": {
+  "ok": true,
   "source": "rdtsc",
   "invariant_tsc": true,
   "kernel_clocksource": "tsc",
   "ticks_per_ns": 2.19999,
   "calibration_spread_ppm": 0.8,
-  "overhead": { "p50_ns": 0, "p99_ns": 0, "p999_ns": 0, "max_ns": 0 },
+  "overhead": { "cpu": 2, "samples": 1000000, "warmup_discarded": 100000,
+                "p50_ns": 0, "p99_ns": 0, "p999_ns": 0, "max_ns": 0 },
   "cross_cpu": [ { "a": 0, "b": 44, "theta_lo_ns": 0, "theta_hi_ns": 0,
-                  "round_trips": 10000, "converged": true } ]
+                  "round_trips": 10000, "warmup_discarded": 1000, "converged": true } ]
 }
 ```
+
+On refusal the block is `ok: false`, a `reason`, and the three check fields (`source`,
+`invariant_tsc`, `kernel_clocksource`) only; no results. The program exits non-zero.
 
 Values shown are placeholders, not results.
 
@@ -139,8 +149,8 @@ Values shown are placeholders, not results.
 - [x] Cross-CPU agreement test
 - [x] Characterise the two-speed cross-socket return transfer (Review, 2026-10-18); root
       cause deferred to the queue work, where cross-socket latency is the measured quantity
-- [ ] JSON `clock` block
-- [ ] Tests for S1–S8, including a forced-refusal test (S1, S2, S4, S7 done)
+- [x] JSON `clock` block: `json.hpp`, `write_clock_block()`, `bench/clock_bench`
+- [ ] Tests for S1–S8, including a forced-refusal test (S1, S2, S3, S4, S7 done)
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
 
 ## Review
@@ -162,3 +172,5 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Agreed | Convergence tolerance changed to 1% of the interval width, approved by Shep. Same machine, not bench-on, after the change: 48 of 87 converged |
 | 2026-10-18 | Built (partial) | Uncore probe (scratch, not committed): 5 sweeps under bench-on with both sockets' uncore frequency sampled every 5 ms. Uncore idles low and takes ≈ 120 ms to ramp from 1.6 to 2.8 GHz; pairs measured during the ramp were ≈ 25% wider (CPU 1: 677 against 537 ticks). bench-on does not control this, and the 1,000-round-trip warm-up (≈ 0.3 ms) does not cover it. Fix: bench-on pins uncore min frequency to 2.8 GHz on both sockets |
 | 2026-10-18 | Built (partial) | Two-speed cross-socket effect: with uncore at 2.8 GHz throughout, 0 of 220 cross-socket pairs were fast, so uncore frequency does not cause it. Memory placement does not decide it either: `numactl --membind=0` gave 0 of 44 fast in one run and 30 of 44 in the next. A machine state that comes and goes during a run; coherence directory or snoop state is the likeliest cause (the ≈ 100 ns gap is about one memory access). Bounds are valid in both modes and each run publishes its own, so the clock proceeds. Also explains bench-on run 1's wider cross-socket widths: the earlier run without bench-on contained fast-mode pairs. Decided with Shep: root cause deferred to the queue work |
+| 2026-10-18 | Agreed | Output amended, approved by Shep: hand-written JSON writer; `clock_bench` writes the run file; refusal block with `ok` and `reason`; sample counts, warm-up and overhead CPU added to the fields |
+| 2026-10-18 | Built (partial) | JSON block built. `clock_bench` on dev-lnx01, not bench-on: 1.8 s, 87 pairs, file parses with exactly the agreed fields (checked by `check_clock_json.py`, S3). Forced refusal writes `ok: false` with the reason and no results (S1). Overhead ran on CPU 62, wherever the process started: the overhead CPU is not controlled |
