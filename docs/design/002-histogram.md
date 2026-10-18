@@ -1,6 +1,6 @@
 # 002 — Histogram
 
-**Status:** Draft · **Updated:** 2026-10-18
+**Status:** Agreed · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -56,7 +56,7 @@ would land in the measured path.
 
 **Percentiles.** Nearest rank, as in note 001's overhead. The reported value is the bucket's upper
 edge, so it is never below the true percentile and at most 0.2% above it (k = 10). A percentile is
-published only if at least 10 samples lie at or above its rank, i.e. count × (1 − p) ≥ 10;
+published only if at least 10 samples lie above its rank, i.e. count × (1 − p) ≥ 10;
 otherwise it is `null`. A p99.99 from 5,000 samples is one sample, not a percentile.
 
 Published set: min, p50, p90, p99, p99.9, p99.99, p99.999, max. Never a mean.
@@ -80,7 +80,7 @@ the same k and range.
 `buckets` lists only non-empty buckets, as `[upper edge in ticks, count]`. Ticks, not ns, so
 re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown are placeholders.
 
-**Why not HdrHistogram itself:** see ADR 0001 (Proposed).
+**Why not HdrHistogram itself:** see ADR 0001.
 
 ## Spec
 
@@ -90,14 +90,14 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
   2^(1−k) above it. Values below 2^k are exact.
 - S3. Min, max, count and overflow are exact, including values beyond the range.
 - S4. Merging histograms gives the same result as recording every sample into one.
-- S5. A percentile with fewer than 10 samples at or above its rank is published as `null`.
+- S5. A percentile with fewer than 10 samples above its rank is published as `null`.
 - S6. No mean is published anywhere.
 - S7. The cost of `record()` is measured and published as percentiles, like the clock's overhead.
 - S8. Compiles for aarch64 with warnings as errors.
 
 ## Tasks
 
-- [ ] ADR 0001: own histogram vs HdrHistogram
+- [x] ADR 0001: own histogram vs HdrHistogram
 - [ ] `include/lfipc/bench/histogram.hpp`: record, merge, percentiles
 - [ ] JSON `histogram` block
 - [ ] Tests S1–S6, S8: exhaustive check of every value below 2^20 for S2; random and bimodal
@@ -109,3 +109,4 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
+| 2026-10-18 | Agreed | Approved by Shep without changes: k = 10, upper-edge percentiles, 10-sample rule, own implementation (ADR 0001 accepted). Wording of the 10-sample rule aligned with its formula ("above", not "at or above") |

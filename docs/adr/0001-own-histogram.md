@@ -1,6 +1,6 @@
 # 0001 — Own histogram instead of HdrHistogram
 
-**Status:** Proposed · **Date:** 2026-10-18
+**Status:** Accepted · **Date:** 2026-10-18
 
 ## Context
 
