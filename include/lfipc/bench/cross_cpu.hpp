@@ -17,7 +17,7 @@
 
 namespace lfipc::bench {
 
-inline constexpr std::size_t default_round_trips = 10'000;
+inline constexpr std::size_t default_round_trips = 100'000;
 inline constexpr std::size_t default_cross_cpu_warmup = 1'000;
 
 struct cross_cpu_pair {

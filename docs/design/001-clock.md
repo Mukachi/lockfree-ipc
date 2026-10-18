@@ -78,7 +78,7 @@ clocks that agree: a false proof of disagreement. So the send side uses `start()
 A is CPU 0. It takes housekeeping interrupts, but the bounds are minimums: an interrupted
 round trip only produces a larger sample, which the minimum discards.
 
-Each pair runs a fixed number of round trips (default 10,000). The minimum is also taken
+Each pair runs a fixed number of round trips (default 100,000). The minimum is also taken
 separately over the first and second halves. If either bound's second-half minimum is lower
 than its first-half minimum by more than 1% of the pair's interval width (d1 + d2), the count
 was not enough to converge, and the pair is marked `converged: false`. So `converged` means a
@@ -116,10 +116,10 @@ to the same value; strings are escaped.
   "kernel_clocksource": "tsc",
   "ticks_per_ns": 2.19999,
   "calibration_spread_ppm": 0.8,
-  "overhead": { "cpu": 2, "samples": 1000000, "warmup_discarded": 100000,
+  "overhead": { "cpu": 1, "samples": 1000000, "warmup_discarded": 100000,
                 "p50_ns": 0, "p99_ns": 0, "p999_ns": 0, "max_ns": 0 },
   "cross_cpu": [ { "a": 0, "b": 44, "theta_lo_ns": 0, "theta_hi_ns": 0,
-                  "round_trips": 10000, "warmup_discarded": 1000, "converged": true } ]
+                  "round_trips": 100000, "warmup_discarded": 1000, "converged": true } ]
 }
 ```
 
@@ -181,3 +181,5 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built (partial) | JSON block built. `clock_bench` on dev-lnx01, not bench-on: 1.8 s, 87 pairs, file parses with exactly the agreed fields (checked by `check_clock_json.py`, S3). Forced refusal writes `ok: false` with the reason and no results (S1). Overhead ran on CPU 62, wherever the process started: the overhead CPU is not controlled |
 | 2026-10-18 | Agreed | Approved by Shep: overhead pinned to CPU 1, not CPU 0 (interrupt load inflates the tail; CPU 0 stays the cross-CPU reference, where minimums discard interrupts). Proven disagreement refuses the run (new S9) |
 | 2026-10-18 | Built | S6 and S8 checked in the compiled code (`check_hot_path.py`, objdump). S6: every rdtsc → rdtscp window in the real overhead loop holds only `lfence`, `mov`, `shl`, `or` on registers. S8: in both cross-CPU threads every read is fenced before any memory access or branch, and each send read has an lfence directly after it. GCC schedules register-only moves between a fence and its read; harmless, and the rule allows it. Checked against a deliberately broken subject (system call in the window, `stamp()` in the threads): every check fails on it. Overhead wording: ns published, ticks follow from `ticks_per_ns`. All tasks but the reviewed bench-on run are done |
+| 2026-10-18 | Built | First reviewed run (bench-on, uncore pinned; not committed, superseded): 13 of 87 pairs not converged at 10,000 round trips. Raised to 100,000, approved by Shep. Same run: overhead on CPU 1 p50 21.4 ns, p99 23.2, p99.9 24.1, max 254 µs (unexplained, for the noise-floor meter); every cross-socket pair in the fast mode (widths 280–339 ns) |
+| 2026-10-18 | Built | S7: every target (7 tests and `clock_bench`) compiles for aarch64 with `-Wall -Wextra -Wpedantic -Werror`, aarch64-linux-gnu-g++ 15.2. Not run on ARM (no emulator here); the fallback's refusal is covered by the logic tests. Running on ARM is for the ARM CI |

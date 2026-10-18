@@ -1,0 +1,804 @@
+{
+  "clock": {
+    "ok": true,
+    "source": "rdtsc",
+    "invariant_tsc": true,
+    "kernel_clocksource": "tsc",
+    "ticks_per_ns": 2.197453083919028,
+    "calibration_spread_ppm": 0.032707838094358024,
+    "overhead": {
+      "cpu": 1,
+      "samples": 1000000,
+      "warmup_discarded": 100000,
+      "p50_ns": 21.388397478856874,
+      "p99_ns": 23.20868662599363,
+      "p999_ns": 24.118831199562006,
+      "max_ns": 254247.06633717913
+    },
+    "cross_cpu": [
+      {
+        "a": 0,
+        "b": 1,
+        "theta_lo_ns": -66.89562615727576,
+        "theta_hi_ns": 90.10431278326938,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 2,
+        "theta_lo_ns": -68.7159153044125,
+        "theta_hi_ns": 92.83474650397451,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 3,
+        "theta_lo_ns": -64.62026472335481,
+        "theta_hi_ns": 86.91880677578006,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 4,
+        "theta_lo_ns": -61.88983100264967,
+        "theta_hi_ns": 84.18837305507492,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 5,
+        "theta_lo_ns": -60.06954185551292,
+        "theta_hi_ns": 82.82315619472236,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 6,
+        "theta_lo_ns": -68.7159153044125,
+        "theta_hi_ns": 90.10431278326938,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 7,
+        "theta_lo_ns": -65.53040929692318,
+        "theta_hi_ns": 94.19996336432708,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 8,
+        "theta_lo_ns": -116.95357770353652,
+        "theta_hi_ns": 86.91880677578006,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 9,
+        "theta_lo_ns": -117.40864999032071,
+        "theta_hi_ns": 84.64344534185912,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 10,
+        "theta_lo_ns": -61.434758715865485,
+        "theta_hi_ns": 82.82315619472236,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 11,
+        "theta_lo_ns": -67.35069844405994,
+        "theta_hi_ns": 90.10431278326938,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 12,
+        "theta_lo_ns": -113.31299940926301,
+        "theta_hi_ns": 91.46952964362194,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 13,
+        "theta_lo_ns": -111.49271026212625,
+        "theta_hi_ns": 94.19996336432708,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 14,
+        "theta_lo_ns": -102.84633681322667,
+        "theta_hi_ns": 100.11590309252153,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 15,
+        "theta_lo_ns": -92.83474650397451,
+        "theta_hi_ns": 100.11590309252153,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 16,
+        "theta_lo_ns": -103.30140910001086,
+        "theta_hi_ns": 94.65503565111126,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 17,
+        "theta_lo_ns": -112.85792712247881,
+        "theta_hi_ns": 91.46952964362194,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 18,
+        "theta_lo_ns": -112.85792712247881,
+        "theta_hi_ns": 94.19996336432708,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 19,
+        "theta_lo_ns": -111.49271026212625,
+        "theta_hi_ns": 95.56518022467965,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 20,
+        "theta_lo_ns": -101.4811199528741,
+        "theta_hi_ns": 100.11590309252153,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 21,
+        "theta_lo_ns": -102.84633681322667,
+        "theta_hi_ns": 96.93039708503221,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 22,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 195.68108331720117,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 23,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 196.13615560398537,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 24,
+        "theta_lo_ns": -92.83474650397451,
+        "theta_hi_ns": 197.04630017755375,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 25,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 190.2202158757909,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 26,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 190.2202158757909,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 27,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 191.58543273614347,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 28,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 195.68108331720117,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 29,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 195.68108331720117,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 30,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 191.58543273614347,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 31,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 192.95064959649605,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 32,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 191.58543273614347,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 33,
+        "theta_lo_ns": -88.28402363613263,
+        "theta_hi_ns": 196.13615560398537,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 34,
+        "theta_lo_ns": -83.27822848150655,
+        "theta_hi_ns": 198.8665893246905,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 35,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 198.8665893246905,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 36,
+        "theta_lo_ns": -86.00866220221168,
+        "theta_hi_ns": 204.78252905288497,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 37,
+        "theta_lo_ns": -88.73909592291682,
+        "theta_hi_ns": 204.32745676610077,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 38,
+        "theta_lo_ns": -86.91880677578006,
+        "theta_hi_ns": 202.9622399057482,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 39,
+        "theta_lo_ns": -88.28402363613263,
+        "theta_hi_ns": 198.8665893246905,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 40,
+        "theta_lo_ns": -88.73909592291682,
+        "theta_hi_ns": 198.8665893246905,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 41,
+        "theta_lo_ns": -88.28402363613263,
+        "theta_hi_ns": 198.8665893246905,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 42,
+        "theta_lo_ns": -85.5535899154275,
+        "theta_hi_ns": 204.78252905288497,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 43,
+        "theta_lo_ns": -84.18837305507492,
+        "theta_hi_ns": 202.9622399057482,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 44,
+        "theta_lo_ns": -24.118831199562006,
+        "theta_hi_ns": 22.753614339209438,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 45,
+        "theta_lo_ns": -74.63185503260696,
+        "theta_hi_ns": 90.10431278326938,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 46,
+        "theta_lo_ns": -120.13908371102583,
+        "theta_hi_ns": 94.19996336432708,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 47,
+        "theta_lo_ns": -66.89562615727576,
+        "theta_hi_ns": 86.00866220221168,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 48,
+        "theta_lo_ns": -61.88983100264967,
+        "theta_hi_ns": 84.18837305507492,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 49,
+        "theta_lo_ns": -116.95357770353652,
+        "theta_hi_ns": 82.82315619472236,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 50,
+        "theta_lo_ns": -121.50430057137841,
+        "theta_hi_ns": 90.10431278326938,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 51,
+        "theta_lo_ns": -68.26084301762832,
+        "theta_hi_ns": 94.19996336432708,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 52,
+        "theta_lo_ns": -116.95357770353652,
+        "theta_hi_ns": 86.91880677578006,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 53,
+        "theta_lo_ns": -117.40864999032071,
+        "theta_hi_ns": 85.5535899154275,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 54,
+        "theta_lo_ns": -62.79997557621805,
+        "theta_hi_ns": 82.82315619472236,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 55,
+        "theta_lo_ns": -111.49271026212625,
+        "theta_hi_ns": 90.10431278326938,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 56,
+        "theta_lo_ns": -114.22314398283139,
+        "theta_hi_ns": 91.46952964362194,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 57,
+        "theta_lo_ns": -110.12749340177369,
+        "theta_hi_ns": 94.19996336432708,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 58,
+        "theta_lo_ns": -102.84633681322667,
+        "theta_hi_ns": 100.11590309252153,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 59,
+        "theta_lo_ns": -94.19996336432708,
+        "theta_hi_ns": 101.4811199528741,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 60,
+        "theta_lo_ns": -104.21155367357923,
+        "theta_hi_ns": 95.56518022467965,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 61,
+        "theta_lo_ns": -112.85792712247881,
+        "theta_hi_ns": 91.46952964362194,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 62,
+        "theta_lo_ns": -112.85792712247881,
+        "theta_hi_ns": 94.65503565111126,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 63,
+        "theta_lo_ns": -111.49271026212625,
+        "theta_hi_ns": 95.56518022467965,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 64,
+        "theta_lo_ns": -101.4811199528741,
+        "theta_hi_ns": 100.11590309252153,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 65,
+        "theta_lo_ns": -102.84633681322667,
+        "theta_hi_ns": 96.93039708503221,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 66,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 195.68108331720117,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 67,
+        "theta_lo_ns": -92.83474650397451,
+        "theta_hi_ns": 197.04630017755375,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 68,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 195.68108331720117,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 69,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 191.58543273614347,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 70,
+        "theta_lo_ns": -88.73909592291682,
+        "theta_hi_ns": 191.58543273614347,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 71,
+        "theta_lo_ns": -88.73909592291682,
+        "theta_hi_ns": 192.95064959649605,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 72,
+        "theta_lo_ns": -85.5535899154275,
+        "theta_hi_ns": 195.68108331720117,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 73,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 195.68108331720117,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 74,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 191.58543273614347,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 75,
+        "theta_lo_ns": -91.46952964362194,
+        "theta_hi_ns": 191.58543273614347,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 76,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 190.2202158757909,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 77,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 196.13615560398537,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 78,
+        "theta_lo_ns": -88.73909592291682,
+        "theta_hi_ns": 200.23180618504307,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 79,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 198.8665893246905,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 80,
+        "theta_lo_ns": -85.5535899154275,
+        "theta_hi_ns": 204.78252905288497,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 81,
+        "theta_lo_ns": -135.61154146168826,
+        "theta_hi_ns": 202.9622399057482,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": false
+      },
+      {
+        "a": 0,
+        "b": 82,
+        "theta_lo_ns": -85.5535899154275,
+        "theta_hi_ns": 202.9622399057482,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 83,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 198.8665893246905,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 84,
+        "theta_lo_ns": -90.10431278326938,
+        "theta_hi_ns": 200.23180618504307,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 85,
+        "theta_lo_ns": -88.28402363613263,
+        "theta_hi_ns": 198.41151703790632,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 86,
+        "theta_lo_ns": -85.5535899154275,
+        "theta_hi_ns": 204.32745676610077,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      },
+      {
+        "a": 0,
+        "b": 87,
+        "theta_lo_ns": -85.5535899154275,
+        "theta_hi_ns": 202.9622399057482,
+        "round_trips": 10000,
+        "warmup_discarded": 1000,
+        "converged": true
+      }
+    ]
+  }
+}
