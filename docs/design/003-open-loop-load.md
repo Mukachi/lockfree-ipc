@@ -69,7 +69,9 @@ generator would hide; the test runs both to prove the difference.
 
 **Output.** A `load` block per rate in the run's JSON, after the `clock` block: offered rate,
 messages, warm-up discarded, producer and consumer CPUs, the lateness histogram, the latency
-histogram(s), and for one-way the offset bound for that CPU pair from the clock block.
+histogram(s), and for one-way the offset bound for that CPU pair. The clock block only bounds
+CPU 0 against each CPU; combining two of those would double the width, so the pair is measured
+directly with note 001's method.
 
 ## Spec
 
@@ -81,7 +83,8 @@ histogram(s), and for one-way the offset bound for that CPU pair from the clock 
 - S5. On the fixed-delay SUT, every recorded latency is ≥ the injected delay.
 - S6. The hot path (producer spin and send, consumer receive and record) makes no allocation and no
   system call, checked in the compiled code as in note 001.
-- S7. Each one-way histogram is published with the clock block's offset bound for its CPU pair.
+- S7. Each one-way histogram is published with the offset bound for its CPU pair, measured
+  directly with note 001's method.
 - S8. Compiles for aarch64 with warnings as errors.
 
 ## Tasks
@@ -89,7 +92,7 @@ histogram(s), and for one-way the offset bound for that CPU pair from the clock 
 - [x] Schedule and producer/consumer loops, with a test SUT
 - [x] Lateness histogram and refusal
 - [x] Round trip
-- [ ] JSON `load` block
+- [x] JSON `load` block
 - [ ] Tests S1–S8, including the stall and fixed-delay SUTs
 - [ ] First run under bench-on; results reviewed here
 
@@ -104,3 +107,4 @@ histogram(s), and for one-way the offset bound for that CPU pair from the clock 
 | 2026-10-18 | Built (partial) | Kernel threads (kthreadd and children) also moved to housekeeping by `bench-on`, restored by `bench-off`. A/B on CPU 2, fence on, 5 s each: threads moved, 4,627 / 4,717 gaps > 5 µs, 0.74% / 0.77% stopped, 6 switches, longest ≤ 258 µs; threads on all CPUs, 742 and 577 gaps, 0.28% and 0.56% stopped, 7 and 44 switches, longest 252 and 722 µs. Moving them removes the long stops and adds many short ones (cause unverified). Run-to-run spread with the same settings is as large as the effect. Producer lateness the same in both; S3 passes in both. Kept, decided with Shep, for the shorter worst case. Characterising this properly, and whether boot-time isolation is needed, belongs to the noise-floor meter |
 | 2026-10-18 | Built (partial) | Refusal built (`evaluate_lateness`, S3): tested on synthetic lateness (0.5% late accepted, 2% refused with p99 and T in the reason, too few to judge refused). Outside bench mode every live test run now refuses for lateness (p99 11–126 µs against T of 1–10 µs), as expected on an unfenced machine; the tests check message correctness separately and accept a lateness refusal as a finished run. Histograms are filled even when a run refuses |
 | 2026-10-18 | Built (partial) | Round trip built, as agreed with Shep: the consumer echoes each message on a second SUT; the producer takes echoes while it waits (and while a send is refused, so neither side can block the other) and records arrival − intended on its own TSC. One-way and round trip come from the same run; the echo work is in both. Tests: every message measured both ways, in order; with a 5 µs delay each way every round trip is ≥ 10 µs and every one-way ≥ 5 µs. Not bench-on, CPUs 2→3: round trip p50 389 ns, one-way 195 ns, almost exactly half; with symmetric paths that puts the 2/3 TSC offset far inside note 001's ±100 ns bound (supporting evidence, not proof). Under TSan the run falls ≈ 200 ms behind and both p50s land in one bucket, so the test checks round trip ≥ one-way, not >. Clean under TSan and ASan/UBSan, compiles for aarch64 |
+| 2026-10-18 | Built (partial) | JSON block (`load_block.hpp`) and `bench/load_bench`: clock flow, the 2→3 pair measured directly, then 100k, 250k, 500k, 1M/s for 10 s of messages each against the one-slot mailbox, echoed. S7 reworded: the clock block has no 2→3 bound, and combining two CPU-0 bounds would double it. A refused rate keeps its reason and the lateness histogram that refused it, and no latency results. `check_load_json.py` checks both kinds on a synthetic file. Smoke run, unfenced: 49 s, all four rates refused for lateness (p99 11–13 µs), exit 1, file complete; pair bound −81 to +113 ns |
