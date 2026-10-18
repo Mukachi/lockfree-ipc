@@ -1,6 +1,6 @@
 # 005 — Noise-floor meter
 
-**Status:** Built · **Updated:** 2026-10-18
+**Status:** Measured · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -95,7 +95,7 @@ Values shown are placeholders.
 - [x] Coarse cause counters (interrupts, softirqs, context switches)
 - [x] JSON `noise` block, added to the three benchmark programs
 - [x] `noise_bench`
-- [ ] Reviewed runs: `noise_bench` and `rtla osnoise` under bench-on
+- [x] Reviewed runs: `noise_bench` and `rtla osnoise` under bench-on
 - [ ] Isolation decision, from those runs; if taken, the same runs again after the boot change
 
 ## Review
@@ -108,3 +108,4 @@ Values shown are placeholders.
 | 2026-10-18 | Built (partial) | Coarse causes: the measured CPU's column of `/proc/interrupts` and `/proc/softirqs` (non-zero types), and involuntary switches, read by the spinning thread before and after the window, outside the loop. First sample, CPU 2 unfenced, 0.5 s: 524 stops, 501 local timer interrupts (LOC), 6 involuntary switches: nearly every stop above 1 µs is a timer tick at `CONFIG_HZ=1000`. One sample, not bench-on |
 | 2026-10-18 | Built (partial) | JSON block (`noise_block.hpp`) in all three programs, between `environment` and `clock`. Sampled CPUs: those whose percentiles are published (CPU 2 for clock and histogram, 2 and 3 for load); not the cross-CPU partners, whose bounds are minimums and would add 3 minutes per run. Taken first; threshold set from a quick 150 ms calibration, figures converted with the clock block's. Classes come from the stop-length histogram (at most 0.2% boundary error). Fields as built: `stops`, `iterations`, `iteration_min_ns`, `overflow`, per-type `interrupts` and `softirqs`, `stop_lengths`. Smoke run, unfenced, CPU 2, 2 s: 1.0% stopped, 2,439 stops (1,983 under 10 µs, 438 to 100 µs, 18 to 1 ms), 2,007 LOC, longest 722 µs |
 | 2026-10-18 | Built | `bench/noise_bench`: environment, clock, then every reserved CPU (read from the live fence) for 10 s, 5 repeats, each repeat sweeping all CPUs so a machine-wide change shows as repeat-to-repeat spread; per-repeat noise blocks and a per-CPU min/max summary (S6). Event capacity 100,000 per sample (≈ 12,000 expected), overflow reported. Optional CPU list, seconds and repeats for smoke runs. Smoke run, unfenced, CPUs 2 and 4, 0.5 s × 2: 0.78–0.92% stopped, 1,050–1,116 stops/s, longest 459–496 µs, 1,004–1,006 timer interrupts/s. All tasks but the reviewed runs and the isolation decision done |
+| 2026-10-18 | Measured | Reviewed runs: `results/noise-dev-lnx01-20261018T222021Z.json` (commit 7af484d, clean, every bench-mode condition met; 40 reserved CPUs × 10 s × 5 repeats, 200 samples, no overflow) and `results/osnoise-dev-lnx01-20261018T225348Z.txt` (`rtla osnoise top -c 2-21,46-65 -d 5m -q`). Per reserved CPU: 0.66–0.74% stopped; ~1,018 stops/s; LOC ~1,010/s; 99.1% of stops 1–10 µs, 0.1% 10–100 µs, 0.8% (≈ 8/s, typically ~400 µs) 100 µs–1 ms, none over 1 ms; longest 254–624 µs; involuntary switches 0.4/s, NMI 0.13/s, softirqs ~10/s. Uniform across CPUs; repeat 5 lower (median 0.66% against 0.73%). rtla: ~1.3% noise, ~1,000 IRQ/s (the tick), 36 NMI, 75 thread events per CPU in 299 s, ~377 'HW' (no OS cause) noise events/s, and a max single noise of 425–429 µs on every CPU: a machine-wide stall, the signature of an SMI. Reading: the short stops are the tick, which `nohz_full` would remove. The ~400 µs stops at ~8/s match note 003's load tail (≈ 0.3% of messages at 1M/s, i.e. p99.9 ≈ 160 µs); if they are SMIs, boot isolation will not remove them, and HPE firmware power/monitoring settings are the lever. Next: count SMIs (MSR_SMI_COUNT via turbostat) before the isolation decision. Spec: S1–S7 pass |
