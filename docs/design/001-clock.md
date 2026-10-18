@@ -1,6 +1,6 @@
 # 001 — Clock
 
-**Status:** Built · **Updated:** 2026-10-18
+**Status:** Measured · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -183,3 +183,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built | S6 and S8 checked in the compiled code (`check_hot_path.py`, objdump). S6: every rdtsc → rdtscp window in the real overhead loop holds only `lfence`, `mov`, `shl`, `or` on registers. S8: in both cross-CPU threads every read is fenced before any memory access or branch, and each send read has an lfence directly after it. GCC schedules register-only moves between a fence and its read; harmless, and the rule allows it. Checked against a deliberately broken subject (system call in the window, `stamp()` in the threads): every check fails on it. Overhead wording: ns published, ticks follow from `ticks_per_ns`. All tasks but the reviewed bench-on run are done |
 | 2026-10-18 | Built | First reviewed run (bench-on, uncore pinned; not committed, superseded): 13 of 87 pairs not converged at 10,000 round trips. Raised to 100,000, approved by Shep. Same run: overhead on CPU 1 p50 21.4 ns, p99 23.2, p99.9 24.1, max 254 µs (unexplained, for the noise-floor meter); every cross-socket pair in the fast mode (widths 280–339 ns) |
 | 2026-10-18 | Built | S7: every target (7 tests and `clock_bench`) compiles for aarch64 with `-Wall -Wextra -Wpedantic -Werror`, aarch64-linux-gnu-g++ 15.2. Not run on ARM (no emulator here); the fallback's refusal is covered by the logic tests. Running on ARM is for the ARM CI |
+| 2026-10-18 | Measured | Reviewed run: `results/clock-dev-lnx01-20261018T194404Z.json`. dev-lnx01, bench-on (performance governor, deep C-states off, uncore pinned at 2.8 GHz), `clock_bench` Release build, 100,000 round trips per pair, warm-up 1,000 discarded; overhead 1,000,000 samples, warm-up 100,000 discarded. Calibration 2.1974531 ticks/ns, spread 0.03 ppm. Overhead on CPU 1: p50 21.4 ns, p99 23.2, p99.9 24.1, max 7.3 µs; p50 to p99.9 identical to the previous run, max not (254 µs then). Cross-CPU, 87 pairs, none proves disagreement: HT sibling ±22.8 ns (width 45.5); same socket widths 180–210 ns, all converged; other socket 397–425 ns, 4 not converged (32, 71, 84, 86). Every cross-socket pair was in the slow mode this run and the fast mode in the run before, under the same settings: the two-speed effect is a run-to-run state, and the likely cause of the 4 unconverged pairs. Root cause stays with the queue work. Spec: S1–S6, S8, S9 pass; S7 compiles for aarch64, not run there |
