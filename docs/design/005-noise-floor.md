@@ -1,6 +1,6 @@
 # 005 — Noise-floor meter
 
-**Status:** Agreed · **Updated:** 2026-10-18
+**Status:** Built · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -94,7 +94,7 @@ Values shown are placeholders.
 - [x] Spinner and stop recording, with S2–S5 tests
 - [x] Coarse cause counters (interrupts, softirqs, context switches)
 - [x] JSON `noise` block, added to the three benchmark programs
-- [ ] `noise_bench`
+- [x] `noise_bench`
 - [ ] Reviewed runs: `noise_bench` and `rtla osnoise` under bench-on
 - [ ] Isolation decision, from those runs; if taken, the same runs again after the boot change
 
@@ -107,3 +107,4 @@ Values shown are placeholders.
 | 2026-10-18 | Built (partial) | Spinner (`noise.hpp`): `spin_window` reads with `stamp()` and records every gap above the threshold into a pre-faulted array and a histogram; counts carry on past capacity. Tests: shortest gap 5.5 ns against a 1 µs threshold (S2); all 20 injected 100 µs stops found, all within 1 µs (S4); capacity 4 with 20 stops: all counted, overflow reported (S3). S5 checked in the compiled code: the loop has TSC reads and no call; fails on a hook that calls `clock_gettime`. The first test run was invalid: Claude's stray test threads were spinning on CPUs 2 and 3 (52% stopped, 3.4 ms longest); after removing them, CPU 2 unfenced: 0.9% stopped, longest 460 µs, 570 stops in 0.5 s |
 | 2026-10-18 | Built (partial) | Coarse causes: the measured CPU's column of `/proc/interrupts` and `/proc/softirqs` (non-zero types), and involuntary switches, read by the spinning thread before and after the window, outside the loop. First sample, CPU 2 unfenced, 0.5 s: 524 stops, 501 local timer interrupts (LOC), 6 involuntary switches: nearly every stop above 1 µs is a timer tick at `CONFIG_HZ=1000`. One sample, not bench-on |
 | 2026-10-18 | Built (partial) | JSON block (`noise_block.hpp`) in all three programs, between `environment` and `clock`. Sampled CPUs: those whose percentiles are published (CPU 2 for clock and histogram, 2 and 3 for load); not the cross-CPU partners, whose bounds are minimums and would add 3 minutes per run. Taken first; threshold set from a quick 150 ms calibration, figures converted with the clock block's. Classes come from the stop-length histogram (at most 0.2% boundary error). Fields as built: `stops`, `iterations`, `iteration_min_ns`, `overflow`, per-type `interrupts` and `softirqs`, `stop_lengths`. Smoke run, unfenced, CPU 2, 2 s: 1.0% stopped, 2,439 stops (1,983 under 10 µs, 438 to 100 µs, 18 to 1 ms), 2,007 LOC, longest 722 µs |
+| 2026-10-18 | Built | `bench/noise_bench`: environment, clock, then every reserved CPU (read from the live fence) for 10 s, 5 repeats, each repeat sweeping all CPUs so a machine-wide change shows as repeat-to-repeat spread; per-repeat noise blocks and a per-CPU min/max summary (S6). Event capacity 100,000 per sample (≈ 12,000 expected), overflow reported. Optional CPU list, seconds and repeats for smoke runs. Smoke run, unfenced, CPUs 2 and 4, 0.5 s × 2: 0.78–0.92% stopped, 1,050–1,116 stops/s, longest 459–496 µs, 1,004–1,006 timer interrupts/s. All tasks but the reviewed runs and the isolation decision done |

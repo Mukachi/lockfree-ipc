@@ -140,3 +140,7 @@ if(Python3_FOUND)
            COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_noise_json.py noise_block.json)
   set_tests_properties(check_noise_json PROPERTIES FIXTURES_REQUIRED noise_json)
 endif()
+
+add_executable(noise_bench bench/noise_bench.cpp)
+target_link_libraries(noise_bench PRIVATE lfipc Threads::Threads)
+target_compile_definitions(noise_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")

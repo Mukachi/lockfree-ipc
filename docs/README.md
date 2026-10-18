@@ -19,7 +19,7 @@ Only Spec and Review are mandatory. Any section can be one line.
 | [002](design/002-histogram.md) | Histogram | Measured |
 | [003](design/003-open-loop-load.md) | Open-loop load generator | Measured |
 | [004](design/004-environment.md) | Environment capture | Measured |
-| [005](design/005-noise-floor.md) | Noise-floor meter | Agreed |
+| [005](design/005-noise-floor.md) | Noise-floor meter | Built |
 
 ## Decision records
 
