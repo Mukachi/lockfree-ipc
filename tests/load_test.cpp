@@ -87,6 +87,36 @@ int main() {
         check(r->out_of_order == 0 && r->latency.count() == c.messages, "S2 no message skipped");
     }
 
+    // Round trip: every message comes back; a fixed delay each way floors every
+    // round trip at twice the delay; the one-way run alongside is unaffected in
+    // what it counts.
+    {
+        t::plain out, back;
+        c.rate_per_s = 1e6;
+        c.messages = 200'000;
+        run_load(out, back, c, *r);
+        report("rt plain", *r, tpn);
+        const auto rt50 = r->round_trip.percentile(50), ow50 = r->latency.percentile(50);
+        std::printf("info  rt plain   round trip p50 %.0f ns, one-way p50 %.0f ns\n", rt50 ? *rt50 / tpn : -1.0,
+                    ow50 ? *ow50 / tpn : -1.0);
+        check(finished(*r) && r->has_round_trip, "round-trip run completes");
+        check(r->round_trip.count() == c.messages && r->latency.count() == c.messages && r->out_of_order == 0,
+              "every message measured both ways, in order");
+        // Not strictly above: when the run is far behind (under TSan, ~200 ms),
+        // both land in the same 0.2%-wide bucket.
+        check(rt50 && ow50 && *rt50 >= *ow50, "round trip p50 not below one-way p50");
+    }
+    {
+        const auto delay = static_cast<ticks>(5'000 * tpn);
+        t::fixed_delay out(delay), back(delay);
+        c.rate_per_s = 1e5;
+        c.messages = 50'000;
+        run_load(out, back, c, *r);
+        report("rt delay", *r, tpn);
+        check(finished(*r) && r->round_trip.min() >= 2 * delay && r->latency.min() >= delay,
+              "S5 round trip at least twice the delay, one-way at least once");
+    }
+
     // S3: the refusal decision, on synthetic lateness. T = 1,000 ticks.
     {
         histogram<> ok_h, late_h, few_h;

@@ -52,6 +52,8 @@ struct load_result {
     std::uint64_t negative = 0;       // receive stamp before intended time; recorded as 0
     histogram<> latency;   // receive stamp - intended send time
     histogram<> lateness;  // producer's send - intended send time
+    bool has_round_trip = false;
+    histogram<> round_trip;  // echo's arrival back at the producer - intended send time
 };
 
 // The refusal decision alone, so it is testable (S3): the generator could not
@@ -76,12 +78,24 @@ inline std::size_t load_warmup(double rate_per_s, std::size_t messages) {
     return std::max(messages / 10, static_cast<std::size_t>(std::ceil(0.1 * rate_per_s)));
 }
 
-// Runs one rate. The producer sends message i at t0 + i*T, spinning until then,
-// and never skips a late one (S2); the consumer records stamp - intended (S1).
-// Histograms are constructed before the threads start, so their pages are mapped.
-template <load_sut Sut>
-void run_load(Sut& sut, const load_config& c, load_result& r) {
+namespace detail {
+
+// Return path for a one-way run: nothing comes back.
+struct no_return {
+    bool send(const message&) { return true; }
+    bool try_receive(message&) { return false; }
+};
+
+// The producer sends message i at t0 + i*T, spinning until then, and never
+// skips a late one (S2); the consumer records stamp - intended (S1). With Echo,
+// the consumer also sends each message back on `back`, and the producer, while
+// it waits, receives the echoes and records arrival - intended: a round trip on
+// one CPU's TSC. Histograms are constructed before the threads start, so their
+// pages are mapped.
+template <bool Echo, load_sut Sut, load_sut Back>
+void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
     r = {};
+    r.has_round_trip = Echo;
     r.rate_per_s = c.rate_per_s;
     r.interval_ticks = c.ticks_per_ns * 1e9 / c.rate_per_s;
     r.messages = c.messages;
@@ -124,6 +138,9 @@ void run_load(Sut& sut, const load_config& c, load_result& r) {
                     r.latency.record(now - m.intended);
                 }
             }
+            if constexpr (Echo) {
+                while (!back.send(m)) detail::cpu_relax();
+            }
             ++expected;
         }
     });
@@ -133,12 +150,32 @@ void run_load(Sut& sut, const load_config& c, load_result& r) {
         ticks base;
         while ((base = t0.load(std::memory_order_acquire)) == 0) detail::cpu_relax();
         if (abort.load()) return;
+        std::uint64_t echoes = 0;
+        // Take one echo if there is one. Called while waiting, so the consumer
+        // is never stuck sending back into a full return path.
+        const auto poll = [&] {
+            message e{};
+            if (!back.try_receive(e)) return false;
+            const ticks now = stop();
+            if (e.seq >= warm) r.round_trip.record(now >= e.intended ? now - e.intended : 0);
+            ++echoes;
+            return true;
+        };
         for (std::size_t i = 0; i < n; ++i) {
             const ticks due = base + offset[i];
-            while (start() < due) detail::cpu_relax();
-            while (!sut.send(message{i, due})) detail::cpu_relax();
+            while (start() < due) {
+                if (!Echo || !poll()) detail::cpu_relax();
+            }
+            while (!sut.send(message{i, due})) {
+                if (!Echo || !poll()) detail::cpu_relax();
+            }
             const ticks sent = start();
             if (i >= warm) r.lateness.record(sent - due);
+        }
+        if constexpr (Echo) {
+            while (echoes < n) {
+                if (!poll()) detail::cpu_relax();
+            }
         }
     });
 
@@ -160,6 +197,21 @@ void run_load(Sut& sut, const load_config& c, load_result& r) {
         return;
     }
     r.ok = true;
+}
+
+}  // namespace detail
+
+// One-way only.
+template <load_sut Sut>
+void run_load(Sut& sut, const load_config& c, load_result& r) {
+    detail::no_return none;
+    detail::run_load_impl<false>(sut, none, c, r);
+}
+
+// One-way and round trip in the same run (note 003, option C).
+template <load_sut Sut, load_sut Back>
+void run_load(Sut& sut, Back& back, const load_config& c, load_result& r) {
+    detail::run_load_impl<true>(sut, back, c, r);
 }
 
 }  // namespace lfipc::bench
