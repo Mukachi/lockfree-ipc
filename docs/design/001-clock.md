@@ -49,7 +49,7 @@ the spread in ppm. Spread above a threshold (default 10 ppm): refuse.
 
 **Overhead.** 1,000,000 back-to-back `start()`/`stop()` pairs, pinned to CPU 1, after warm-up.
 Not CPU 0: it takes the most housekeeping interrupts, which would inflate the tail. A CPU that
-cannot be pinned refuses the run. Publish p50, p99, p99.9 and max, in ticks and ns. No
+cannot be pinned refuses the run. Publish p50, p99, p99.9 and max in ns; ticks follow from `ticks_per_ns`. No
 dependency on the histogram component: a sorted array is enough here.
 
 **Cross-CPU agreement.** CPU A and CPU B ping-pong a cache line. A records `tA_send` before
@@ -155,7 +155,7 @@ Values shown are placeholders, not results.
 - [x] Characterise the two-speed cross-socket return transfer (Review, 2026-10-18); root
       cause deferred to the queue work, where cross-socket latency is the measured quantity
 - [x] JSON `clock` block: `json.hpp`, `write_clock_block()`, `bench/clock_bench`
-- [ ] Tests for S1–S9, including a forced-refusal test (S1, S2, S3, S4, S5, S7, S9 done; S6, S8 left)
+- [x] Tests for S1–S9, including a forced-refusal test
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
 
 ## Review
@@ -180,3 +180,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Agreed | Output amended, approved by Shep: hand-written JSON writer; `clock_bench` writes the run file; refusal block with `ok` and `reason`; sample counts, warm-up and overhead CPU added to the fields |
 | 2026-10-18 | Built (partial) | JSON block built. `clock_bench` on dev-lnx01, not bench-on: 1.8 s, 87 pairs, file parses with exactly the agreed fields (checked by `check_clock_json.py`, S3). Forced refusal writes `ok: false` with the reason and no results (S1). Overhead ran on CPU 62, wherever the process started: the overhead CPU is not controlled |
 | 2026-10-18 | Agreed | Approved by Shep: overhead pinned to CPU 1, not CPU 0 (interrupt load inflates the tail; CPU 0 stays the cross-CPU reference, where minimums discard interrupts). Proven disagreement refuses the run (new S9) |
+| 2026-10-18 | Built | S6 and S8 checked in the compiled code (`check_hot_path.py`, objdump). S6: every rdtsc → rdtscp window in the real overhead loop holds only `lfence`, `mov`, `shl`, `or` on registers. S8: in both cross-CPU threads every read is fenced before any memory access or branch, and each send read has an lfence directly after it. GCC schedules register-only moves between a fence and its read; harmless, and the rule allows it. Checked against a deliberately broken subject (system call in the window, `stamp()` in the threads): every check fails on it. Overhead wording: ns published, ticks follow from `ticks_per_ns`. All tasks but the reviewed bench-on run are done |

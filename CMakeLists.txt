@@ -51,6 +51,15 @@ if(Python3_FOUND)
   set_tests_properties(check_clock_json PROPERTIES FIXTURES_REQUIRED clock_json)
 endif()
 
+# S6 and S8 are checked in the compiled code, so x86-64 only.
+add_executable(hot_path_subject tests/hot_path_subject.cpp)
+target_link_libraries(hot_path_subject PRIVATE lfipc Threads::Threads)
+if(Python3_FOUND AND CMAKE_OBJDUMP AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+  add_test(NAME check_hot_path
+           COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_hot_path.py
+                   ${CMAKE_OBJDUMP} $<TARGET_FILE:hot_path_subject>)
+endif()
+
 add_executable(clock_bench bench/clock_bench.cpp)
 target_link_libraries(clock_bench PRIVATE lfipc Threads::Threads)
 target_compile_definitions(clock_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")
