@@ -86,3 +86,7 @@ add_test(NAME record_cost_test COMMAND record_cost_test)
 add_executable(histogram_bench bench/histogram_bench.cpp)
 target_link_libraries(histogram_bench PRIVATE lfipc Threads::Threads)
 target_compile_definitions(histogram_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")
+
+add_executable(load_test tests/load_test.cpp)
+target_link_libraries(load_test PRIVATE lfipc Threads::Threads)
+add_test(NAME load_test COMMAND load_test)

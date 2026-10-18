@@ -1,0 +1,95 @@
+// Tests for include/lfipc/bench/load.hpp. Spec: docs/design/003-open-loop-load.md
+#include "test_suts.hpp"
+
+#include <lfipc/bench/calibrate.hpp>
+#include <lfipc/bench/load.hpp>
+
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
+
+namespace {
+
+int failures = 0;
+
+void check(bool cond, const char* what) {
+    std::printf("%s  %s\n", cond ? "pass" : "FAIL", what);
+    if (!cond) ++failures;
+}
+
+using namespace lfipc::bench;
+namespace t = lfipc::test;
+
+void report(const char* name, const load_result& r, double tpn) {
+    const auto ns = [tpn](std::optional<ticks> v) { return v ? static_cast<double>(*v) / tpn : -1.0; };
+    std::printf("info  %-10s %zu msgs at %.0f/s: latency p50 %.0f p99 %.0f p99.9 %.0f max %.0f ns; "
+                "lateness p99 %.0f ns\n",
+                name, r.messages, r.rate_per_s, ns(r.latency.percentile(50)), ns(r.latency.percentile(99)),
+                ns(r.latency.percentile(99.9)), static_cast<double>(r.latency.max()) / tpn,
+                ns(r.lateness.percentile(99)));
+}
+
+}  // namespace
+
+int main() {
+    const auto cal = calibrate(3, 50);
+    const double tpn = cal.ticks_per_ns;
+    load_config c;
+    c.ticks_per_ns = tpn;
+    auto r = std::make_unique<load_result>();  // two 128 KB histograms: keep off the stack
+
+    check(load_warmup(1e6, 1'000'000) == 100'000 && load_warmup(1e6, 10'000'000) == 1'000'000 &&
+              load_warmup(1e4, 1'000) == 1'000,
+          "warm-up is 10% and at least 100 ms of messages");
+
+    // Plain mailbox: everything arrives once, in order, and is counted.
+    {
+        t::plain sut;
+        c.rate_per_s = 1e6;
+        c.messages = 200'000;
+        run_load(sut, c, *r);
+        report("plain", *r, tpn);
+        check(r->ok, "plain run completes");
+        check(r->out_of_order == 0 && r->negative == 0, "every message once, in order; no negative latency");
+        check(r->latency.count() == c.messages && r->lateness.count() == c.messages,
+              "measured count excludes warm-up, on both histograms");
+    }
+
+    // S5: a fixed 5 us delay is a floor under every latency.
+    {
+        const auto delay = static_cast<ticks>(5'000 * tpn);
+        t::fixed_delay sut(delay);
+        c.rate_per_s = 1e5;
+        c.messages = 50'000;
+        run_load(sut, c, *r);
+        report("delay 5us", *r, tpn);
+        check(r->ok && r->latency.min() >= delay, "S5 every latency is at least the injected delay");
+    }
+
+    // S1 and S2: the producer is held up 1 ms on one message. Measured from the
+    // intended time, the messages due during the hold show it; none is skipped.
+    {
+        c.rate_per_s = 1e6;
+        c.messages = 200'000;
+        const auto hold = static_cast<ticks>(1e6 * tpn);
+        t::send_stall sut(load_warmup(c.rate_per_s, c.messages) + 50'000, hold);
+        run_load(sut, c, *r);
+        report("send stall", *r, tpn);
+        check(r->ok && r->latency.max() >= hold * 9 / 10, "S1 latency counts from the intended send time");
+        check(r->lateness.max() >= hold * 9 / 10, "producer lateness shows the hold");
+        check(r->out_of_order == 0 && r->latency.count() == c.messages, "S2 no message skipped");
+    }
+
+    // An unpinnable CPU refuses.
+    {
+        t::plain sut;
+        c.producer_cpu = -1;
+        c.messages = 1'000;
+        run_load(sut, c, *r);
+        check(!r->ok && !r->reason.empty(), "unpinnable CPU refuses with a reason");
+        c.producer_cpu = 2;
+    }
+
+    std::printf("%s\n", failures ? "FAILED" : "all passed");
+    return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+}

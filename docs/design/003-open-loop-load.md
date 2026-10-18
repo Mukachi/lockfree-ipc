@@ -86,7 +86,7 @@ histogram(s), and for one-way the offset bound for that CPU pair from the clock 
 
 ## Tasks
 
-- [ ] Schedule and producer/consumer loops, with a test SUT
+- [x] Schedule and producer/consumer loops, with a test SUT
 - [ ] Lateness histogram and refusal
 - [ ] Round trip
 - [ ] JSON `load` block
@@ -99,3 +99,4 @@ histogram(s), and for one-way the offset bound for that CPU pair from the clock 
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
 | 2026-10-18 | Agreed | Approved by Shep: option C (one-way and round trip side by side), constant spacing, refusal at lateness p99 > T, warm-up 10% and at least 100 ms |
+| 2026-10-18 | Built (partial) | Schedule and loops (`load.hpp`), test SUTs (`tests/test_suts.hpp`: one-slot mailbox, fixed delay, receive stall, send stall). Tests pass, also under TSan and ASan/UBSan, and compile for aarch64: every message once and in order; a 5 µs injected delay floors every latency (S5); a 1 ms producer hold shows in latency counted from the intended time, and nothing is skipped (S1, S2). Finding, not bench-on: producer lateness p99 ≈ 12 µs and p99.9 ≈ 340 µs at both 100k/s and 1M/s and on two CPU pairs, so not the generator's speed. A thread spinning alone on CPU 2 is stopped 0.6% of the time (822 gaps > 5 µs in 5 s, longest 0.5 ms, 34 involuntary context switches); CPU 30 the same. The CPUs are not isolated (no `isolcpus`/`nohz_full`), and user tasks run on them. Under S3 every run at 1M/s would refuse. The open-loop design is doing its job: it counts every message due during a stop |
