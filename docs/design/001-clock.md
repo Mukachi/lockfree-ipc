@@ -106,13 +106,13 @@ Values shown are placeholders, not results.
 
 ## Tasks
 
-- [ ] Header `include/lfipc/bench/clock.hpp`: `start()`, `stop()`, `stamp()`
-- [ ] Startup checks (CPUID, kernel clocksource)
+- [x] Header `include/lfipc/bench/clock.hpp`: `start()`, `stop()`, `stamp()`
+- [x] Startup checks (CPUID, kernel clocksource)
 - [ ] Calibration
 - [ ] Overhead measurement
 - [ ] Cross-CPU agreement test
 - [ ] JSON `clock` block
-- [ ] Tests for S1–S7, including a forced-refusal test
+- [ ] Tests for S1–S7, including a forced-refusal test (S1, S7 done)
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
 
 ## Review
