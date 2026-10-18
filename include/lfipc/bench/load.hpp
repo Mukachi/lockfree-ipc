@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <thread>
 #include <vector>
@@ -41,7 +42,7 @@ struct load_config {
 
 struct load_result {
     bool ok = false;
-    std::string reason;
+    std::string reason;  // empty when ok; histograms are filled even on a lateness refusal
     double rate_per_s = 0.0;
     double interval_ticks = 0.0;   // T
     std::size_t messages = 0;
@@ -52,6 +53,23 @@ struct load_result {
     histogram<> latency;   // receive stamp - intended send time
     histogram<> lateness;  // producer's send - intended send time
 };
+
+// The refusal decision alone, so it is testable (S3): the generator could not
+// sustain the rate if its lateness p99 exceeds the send interval. p99 is a
+// bucket's upper edge, so this errs towards refusing.
+inline check_result evaluate_lateness(const histogram<>& lateness, double interval_ticks, double ticks_per_ns) {
+    const auto p99 = lateness.percentile(99.0);
+    if (!p99) return {false, "too few messages to judge producer lateness: p99 needs at least 1,000"};
+    if (static_cast<double>(*p99) > interval_ticks) {
+        char buf[160];
+        std::snprintf(buf, sizeof(buf),
+                      "producer lateness p99 %.0f ns exceeds the send interval %.0f ns: "
+                      "the generator could not sustain the rate",
+                      static_cast<double>(*p99) / ticks_per_ns, interval_ticks / ticks_per_ns);
+        return {false, buf};
+    }
+    return {true, {}};
+}
 
 // Warm-up: 10% of the measured count, and at least 100 ms of messages.
 inline std::size_t load_warmup(double rate_per_s, std::size_t messages) {
@@ -134,6 +152,11 @@ void run_load(Sut& sut, const load_config& c, load_result& r) {
     if (failed.load()) {
         r.reason = "cannot pin producer CPU " + std::to_string(c.producer_cpu) + " or consumer CPU " +
                    std::to_string(c.consumer_cpu);
+        return;
+    }
+    const auto lat = evaluate_lateness(r.lateness, r.interval_ticks, c.ticks_per_ns);
+    if (!lat.ok) {
+        r.reason = lat.reason;
         return;
     }
     r.ok = true;

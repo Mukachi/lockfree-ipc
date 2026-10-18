@@ -20,6 +20,13 @@ void check(bool cond, const char* what) {
 using namespace lfipc::bench;
 namespace t = lfipc::test;
 
+// The run finished and every message was handled. Refusal for lateness is a
+// verdict on the machine, not on correctness, so it counts as finished here.
+bool finished(const load_result& r) {
+    if (!r.ok && r.reason.rfind("producer lateness", 0) == 0) std::printf("info  refused: %s\n", r.reason.c_str());
+    return r.ok || r.reason.rfind("producer lateness", 0) == 0;
+}
+
 void report(const char* name, const load_result& r, double tpn) {
     const auto ns = [tpn](std::optional<ticks> v) { return v ? static_cast<double>(*v) / tpn : -1.0; };
     std::printf("info  %-10s %zu msgs at %.0f/s: latency p50 %.0f p99 %.0f p99.9 %.0f max %.0f ns; "
@@ -49,7 +56,7 @@ int main() {
         c.messages = 200'000;
         run_load(sut, c, *r);
         report("plain", *r, tpn);
-        check(r->ok, "plain run completes");
+        check(finished(*r), "plain run completes");
         check(r->out_of_order == 0 && r->negative == 0, "every message once, in order; no negative latency");
         check(r->latency.count() == c.messages && r->lateness.count() == c.messages,
               "measured count excludes warm-up, on both histograms");
@@ -63,7 +70,7 @@ int main() {
         c.messages = 50'000;
         run_load(sut, c, *r);
         report("delay 5us", *r, tpn);
-        check(r->ok && r->latency.min() >= delay, "S5 every latency is at least the injected delay");
+        check(finished(*r) && r->latency.min() >= delay, "S5 every latency is at least the injected delay");
     }
 
     // S1 and S2: the producer is held up 1 ms on one message. Measured from the
@@ -75,9 +82,22 @@ int main() {
         t::send_stall sut(load_warmup(c.rate_per_s, c.messages) + 50'000, hold);
         run_load(sut, c, *r);
         report("send stall", *r, tpn);
-        check(r->ok && r->latency.max() >= hold * 9 / 10, "S1 latency counts from the intended send time");
+        check(finished(*r) && r->latency.max() >= hold * 9 / 10, "S1 latency counts from the intended send time");
         check(r->lateness.max() >= hold * 9 / 10, "producer lateness shows the hold");
         check(r->out_of_order == 0 && r->latency.count() == c.messages, "S2 no message skipped");
+    }
+
+    // S3: the refusal decision, on synthetic lateness. T = 1,000 ticks.
+    {
+        histogram<> ok_h, late_h, few_h;
+        for (int i = 0; i < 10'000; ++i) ok_h.record(i < 50 ? 5'000 : 100);    // 0.5% late by > T
+        for (int i = 0; i < 10'000; ++i) late_h.record(i < 200 ? 5'000 : 100);  // 2% late by > T
+        for (int i = 0; i < 500; ++i) few_h.record(100);
+        check(evaluate_lateness(ok_h, 1'000, 2.0).ok, "S3 0.5% late by more than T: accepted");
+        const auto late = evaluate_lateness(late_h, 1'000, 2.0);
+        check(!late.ok && late.reason.find("exceeds the send interval 500 ns") != std::string::npos,
+              "S3 2% late by more than T: refused, with p99 and T in the reason");
+        check(!evaluate_lateness(few_h, 1'000, 2.0).ok, "S3 too few messages to judge: refused");
     }
 
     // An unpinnable CPU refuses.
