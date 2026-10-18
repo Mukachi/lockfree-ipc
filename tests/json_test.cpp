@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
+#include <optional>
 #include <string>
 
 namespace {
@@ -74,6 +75,25 @@ int main() {
         json_writer w;
         w.value("q\"b\\s\nt\tc\x01");
         check(w.str() == "\"q\\\"b\\\\s\\nt\\tc\\u0001\"", "strings escaped");
+    }
+    {
+        json_writer w;
+        w.begin_object();
+        w.key("b");
+        w.begin_inline_array();
+        w.begin_array();
+        w.value(1);
+        w.value(2);
+        w.end_array();
+        w.begin_array();
+        w.end_array();
+        w.end_array();
+        w.member("n", nullptr);
+        w.member("o", std::optional<double>{});
+        w.member("v", std::optional<int>{7});
+        w.end_object();
+        check(w.str() == "{\n  \"b\": [[1, 2], []],\n  \"n\": null,\n  \"o\": null,\n  \"v\": 7\n}",
+              "inline arrays, nested inside stay inline; null and optional");
     }
     check(round_trips(0.1) && round_trips(2.1974531) && round_trips(1e-300) && round_trips(-31.5),
           "doubles read back to the same value");

@@ -69,6 +69,7 @@ the same k and range.
 ```json
 "histogram": {
   "sub_bucket_bits": 10,
+  "max_bits": 40,
   "count": 0,
   "overflow": 0,
   "min_ns": 0, "max_ns": 0,
@@ -99,8 +100,8 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
 
 - [x] ADR 0001: own histogram vs HdrHistogram
 - [x] `include/lfipc/bench/histogram.hpp`: record, merge, percentiles
-- [ ] JSON `histogram` block
-- [ ] Tests S1–S6, S8 (S1–S5, S8 done; S6 with the JSON block): exhaustive check of every value below 2^20 for S2; random and bimodal
+- [x] JSON `histogram` block
+- [x] Tests S1–S6, S8: exhaustive check of every value below 2^20 for S2; random and bimodal
       distributions against a sorted copy; merge; page faults counted with `getrusage`
 - [ ] Record cost (S7) under bench-on; results reviewed here
 
@@ -111,3 +112,4 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
 | 2026-10-18 | Draft | Written for review |
 | 2026-10-18 | Agreed | Approved by Shep without changes: k = 10, upper-edge percentiles, 10-sample rule, own implementation (ADR 0001 accepted). Wording of the 10-sample rule aligned with its formula ("above", not "at or above") |
 | 2026-10-18 | Built (partial) | Header and tests. S2 checked on every value below 2^20, both sides of every power of two to 2^40, 1M random values, and percentiles against a sorted copy on uniform, lognormal and bimodal data (2M samples each). S1: 0 minor page faults recording 2M values across all buckets; the same meter counts 22 on counters allocated but never written, so it can see faults. Disassembly showed GCC turned the index's `max()` into two branches (a zero check before `bsr`, and a shortcut below 2^k). The second would mispredict when values straddle 1,024 ticks (466 ns), which is where cross-socket latencies sit. Fixed by taking the bit width of `v | 2^(k−1)`; `check_hot_path.py` now requires `record()` to have no call and exactly one conditional branch (overflow). `nearest_rank` moved to `rank.hpp`, shared with note 001's overhead |
+| 2026-10-18 | Built (partial) | JSON block built (`histogram_block.hpp`). Added `max_bits` to the fields: without the range a reader cannot tell where overflow starts or whether two histograms can be merged. Buckets written one per line; 2M lognormal samples give 4,500 lines. `check_histogram_json.py` checks exact fields, S5 against the rank rule, buckets plus overflow equal count, and S6 (no key like mean/avg/average) across the histogram and clock files; it fails on a doctored block with `mean_ns` and a wrong null. JSON writer gained `null`, `optional` and one-line arrays; the clock's output is unchanged |

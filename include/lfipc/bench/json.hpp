@@ -4,7 +4,9 @@
 #include <charconv>
 #include <cmath>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -18,6 +20,9 @@ public:
     void begin_object() { open('{'); }
     void end_object() { close('}'); }
     void begin_array() { open('['); }
+    // An array written on one line, elements separated by ", ". Containers
+    // opened inside it are on one line too.
+    void begin_inline_array() { open('[', true); }
     void end_array() { close(']'); }
 
     void key(std::string_view k) {
@@ -28,6 +33,12 @@ public:
     }
 
     void value(bool b) { scalar(b ? "true" : "false"); }
+    void value(std::nullptr_t) { scalar("null"); }
+    template <typename T>
+    void value(const std::optional<T>& v) {
+        if (v) value(*v);
+        else value(nullptr);
+    }
     void value(std::string_view s) {
         separate();
         string(s);
@@ -62,24 +73,29 @@ private:
             after_key_ = false;
             return;
         }
-        if (!first_.empty()) {
-            if (!first_.back()) out_ += ',';
-            first_.back() = false;
-            out_ += '\n';
-            out_.append(2 * first_.size(), ' ');
+        if (!open_.empty()) {
+            level& l = open_.back();
+            if (l.compact) {
+                if (!l.empty) out_ += ", ";
+            } else {
+                if (!l.empty) out_ += ',';
+                out_ += '\n';
+                out_.append(2 * open_.size(), ' ');
+            }
+            l.empty = false;
         }
     }
-    void open(char c) {
+    void open(char c, bool compact = false) {
         separate();
         out_ += c;
-        first_.push_back(true);
+        open_.push_back({true, compact || (!open_.empty() && open_.back().compact)});
     }
     void close(char c) {
-        const bool empty = first_.back();
-        first_.pop_back();
-        if (!empty) {
+        const level l = open_.back();
+        open_.pop_back();
+        if (!l.empty && !l.compact) {
             out_ += '\n';
-            out_.append(2 * first_.size(), ' ');
+            out_.append(2 * open_.size(), ' ');
         }
         out_ += c;
     }
@@ -111,8 +127,12 @@ private:
         out_ += '"';
     }
 
+    struct level {
+        bool empty;    // no element written yet
+        bool compact;  // written on one line
+    };
     std::string out_;
-    std::vector<bool> first_;  // per open container: no element written yet
+    std::vector<level> open_;
     bool after_key_ = false;
 };
 

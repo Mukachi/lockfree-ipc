@@ -67,3 +67,14 @@ target_compile_definitions(clock_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE
 add_executable(histogram_test tests/histogram_test.cpp)
 target_link_libraries(histogram_test PRIVATE lfipc)
 add_test(NAME histogram_test COMMAND histogram_test)
+
+add_executable(histogram_block_test tests/histogram_block_test.cpp)
+target_link_libraries(histogram_block_test PRIVATE lfipc)
+add_test(NAME histogram_block_test COMMAND histogram_block_test)
+set_tests_properties(histogram_block_test PROPERTIES FIXTURES_SETUP histogram_json)
+if(Python3_FOUND)
+  add_test(NAME check_histogram_json
+           COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_histogram_json.py
+                   histogram_full.json histogram_empty.json clock_ok.json clock_refused.json)
+  set_tests_properties(check_histogram_json PROPERTIES FIXTURES_REQUIRED "histogram_json;clock_json")
+endif()
