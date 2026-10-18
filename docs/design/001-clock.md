@@ -61,6 +61,16 @@ If B's TSC is offset by θ from A's, then over many round trips
 so θ lies in [−d2, d1]. A negative d1 or d2 is direct proof of disagreement. Run CPU 0 against
 every other CPU, covering its hyper-thread sibling, the same socket and the other socket.
 
+The interval's width, d1 + d2, is the fastest round trip: two one-way cache-line transfers. It
+is a property of the interconnect, not of the clocks. Expect tens of ns on one socket and more
+across the inter-socket link. The test can therefore prove disagreement (a negative bound), but
+it can only show agreement to within that width. The output says so, so that a wide
+cross-socket interval is not read as skew.
+
+Open question: the number of round trips per pair (87 pairs on dev-lnx01), and whether A stays
+CPU 0. CPU 0 takes housekeeping interrupts, and once `bench-on` isolates cores an isolated CPU
+may be the better reference. To be decided before this task is built.
+
 ```mermaid
 flowchart TD
     A[Start] --> B{Invariant TSC?}
@@ -125,3 +135,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built (partial) | Cross-check: kernel refined calibration at boot reports 2197.453 MHz, matching ours to the kHz. Its first quick estimate (2197.632 MHz) was 81 ppm off |
 | 2026-10-18 | Built (partial) | Overhead of a start()/stop() pair on dev-lnx01, CPU 2, not bench-on: p50 31–32 ns, p99 47 ns, p99.9 47 ns, max 17–24 µs. The max is about 500× the p50: interruptions, to be explained by the noise-floor meter |
 | 2026-10-18 | Built (partial) | The percentile test caught a floating-point bug: 99.9 / 100 × 1000 rounds up past 999, so a bare ceil() reports the wrong rank in the tail. Fixed with p × n first and a guard |
+| 2026-10-18 | Agreed | Cross-CPU section: interval width explained as the round-trip floor; reference CPU and round-trip count left as an open question |
