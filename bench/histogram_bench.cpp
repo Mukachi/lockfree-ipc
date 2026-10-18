@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         cost = measure_record_cost();
         if (cost.empty()) {
             clk.ok = false;
-            clk.reason = "cannot pin to CPU 1 for record cost";
+            clk.reason = "cannot pin to CPU 2 for record cost";
         }
     }
     write_clock_block(run.w, clk);

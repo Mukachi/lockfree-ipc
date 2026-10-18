@@ -48,7 +48,7 @@ int main() {
     if (clock_is_tsc) {
         check(ok.ok && ok.reason.empty(), "healthy run publishes");
         check(ok.cross_cpu.size() + 1 == online_cpus().size(), "cross-CPU block covers every other CPU");
-        check(ok.ovh.cpu == 1, "overhead measured on CPU 1");
+        check(ok.ovh.cpu == 2, "overhead measured on CPU 2");
     } else {
         check(!ok.ok, "S7 fallback refuses");
     }

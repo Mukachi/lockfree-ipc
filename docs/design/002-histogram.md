@@ -85,7 +85,7 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
 single call cannot be timed on its own, and note 001 forbids subtracting the overhead. Instead
 `bench/histogram_bench` times `start(); record(v); stop()` and, in the same loop on the same CPU,
 `start(); stop()` with no record. Both distributions are published side by side, unsubtracted.
-1,000,000 samples per case after 100,000 warm-up, pinned to CPU 1 (as note 001's overhead),
+1,000,000 samples per case after 100,000 warm-up, pinned to CPU 2 (as note 001's overhead),
 values generated before timing. Three cases:
 
 | Case | Values | What it shows |
@@ -133,3 +133,4 @@ not misses to memory. The run's JSON also carries the full `clock` block (note 0
 | 2026-10-18 | Built | Record cost built: `record_cost.hpp`, `bench/histogram_bench`. Disassembly of the timed loop: between the reads, only the inlined `record()` (count, min/max by `cmov`, the overflow branch, index, increment); the value is loaded before `start()` and the delta stored after the closing fence. Short run, not bench-on, CPU 1: bare read p50 56 ticks; with `record()` hot 64, realistic 64 (p99.9 132), worst 68 (p99.9 144). All tasks but the reviewed bench-on run done |
 | 2026-10-18 | Measured | Reviewed run: `results/histogram-dev-lnx01-20261018T201320Z.json`. dev-lnx01, bench-on (uncore pinned), CPU 1, 1,000,000 samples per case, 100,000 warm-up discarded, Release build. Bare `start(); stop()`: p50 21.4 ns, p99 23.2, p99.9 24.1, max 5.5 µs, identical to the clock block's overhead from the same run (two separate loops agree). With `record()`: hot p50 24.6 / p99 27.3 / p99.9 28.7 ns; realistic 24.6 / 27.3 / 42.8; worst 25.5 / 30.0 / 48.2. `record()` adds about 3 ns (7 ticks) at p50, 4–7 ns at p99. The worst-case p99.9 (+24 ns) is L1 misses served from L2, as predicted. The realistic p99.9 (+19 ns) is unexplained: its few hundred buckets should stay in L1. Open, small. Spec: S1–S8 pass (S6 also checked on this results file) |
 | 2026-10-18 | Measured | Finding (note 004's reviewed run, `results/clock-dev-lnx01-20261018T215708Z.json`): with the CPU fence, CPU 1 is a housekeeping CPU and carries every service, kernel thread and movable interrupt; overhead max rose to 3.0 ms (p50–p99.9 unchanged at 21.4 / 23.2 / 24.1 ns). Measuring on CPU 1 no longer avoids interrupt load, it maximises it. Earlier results predate the fence and stand. Change of CPU proposed to Shep |
+| 2026-10-18 | Measured | Approved by Shep: record cost moved from CPU 1 to CPU 2 with note 001's overhead. The reviewed run was on CPU 1 and stands as recorded |

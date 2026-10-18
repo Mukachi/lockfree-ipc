@@ -20,7 +20,9 @@ struct clock_options {
     double max_spread_ppm = default_max_spread_ppm;
     std::size_t overhead_samples = 1'000'000;
     std::size_t overhead_warmup = 100'000;
-    int overhead_cpu = 1;  // not CPU 0: its interrupt load would inflate the tail
+    // A reserved CPU (note 004's fence): not CPU 0 or 1, which carry the
+    // housekeeping load and would inflate the tail.
+    int overhead_cpu = 2;
     int reference_cpu = 0;
     std::size_t round_trips = default_round_trips;
     std::size_t cross_cpu_warmup = default_cross_cpu_warmup;

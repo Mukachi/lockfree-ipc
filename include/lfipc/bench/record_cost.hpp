@@ -62,7 +62,7 @@ inline std::vector<ticks> record_cost_values(const std::string& name, std::size_
 
 // The bare read first, then each record case, all on `cpu`. Empty if `cpu`
 // cannot be pinned.
-inline std::vector<record_cost_case> measure_record_cost(int cpu = 1, std::size_t samples = 1'000'000,
+inline std::vector<record_cost_case> measure_record_cost(int cpu = 2, std::size_t samples = 1'000'000,
                                                          std::size_t warmup = 100'000) {
     if (!detail::pin_to(cpu)) return {};
     std::vector<record_cost_case> out;

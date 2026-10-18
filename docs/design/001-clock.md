@@ -47,10 +47,11 @@ Intrinsics (`__rdtsc`, `__rdtscp`, `_mm_lfence`), no inline assembly.
 `CLOCK_MONOTONIC_RAW` and the TSC at both ends and compute ticks per ns. Publish the median and
 the spread in ppm. Spread above a threshold (default 10 ppm): refuse.
 
-**Overhead.** 1,000,000 back-to-back `start()`/`stop()` pairs, pinned to CPU 1, after warm-up.
-Not CPU 0: it takes the most housekeeping interrupts, which would inflate the tail. A CPU that
-cannot be pinned refuses the run. Publish p50, p99, p99.9 and max in ns; ticks follow from `ticks_per_ns`. No
-dependency on the histogram component: a sorted array is enough here.
+**Overhead.** 1,000,000 back-to-back `start()`/`stop()` pairs, pinned to CPU 2, after warm-up.
+A reserved CPU under note 004's fence: CPUs 0 and 1 carry the housekeeping load (CPU 0 the most
+interrupts), which would inflate the tail. A CPU that cannot be pinned refuses the run. Publish
+p50, p99, p99.9 and max in ns; ticks follow from `ticks_per_ns`. No dependency on the histogram
+component: a sorted array is enough here.
 
 **Cross-CPU agreement.** CPU A and CPU B ping-pong a cache line. A records `tA_send` before
 writing; B records `tB_recv` on seeing it, then `tB_send` before replying; A records `tA_recv`.
@@ -118,7 +119,7 @@ to the same value; strings are escaped.
   "kernel_clocksource": "tsc",
   "ticks_per_ns": 2.19999,
   "calibration_spread_ppm": 0.8,
-  "overhead": { "cpu": 1, "samples": 1000000, "warmup_discarded": 100000,
+  "overhead": { "cpu": 2, "samples": 1000000, "warmup_discarded": 100000,
                 "p50_ns": 0, "p99_ns": 0, "p999_ns": 0, "max_ns": 0 },
   "cross_cpu": [ { "a": 0, "b": 44, "theta_lo_ns": 0, "theta_hi_ns": 0,
                   "gain_hi_ticks": 0, "gain_lo_ticks": 0,
@@ -190,3 +191,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Measured | Finding from the histogram run (`results/histogram-dev-lnx01-20261018T201320Z.json`), same settings as the reviewed run: 13 of 87 pairs not converged at 100,000 round trips (same socket 2, 7, 9, 48, 54; other socket 30, 32, 35, 39, 70, 73, 75, 78), against 4 (all cross-socket) in the reviewed run. Cross-socket pairs were in the fast mode (median width 293 ns). Same-socket non-convergence is not explained by the two-speed effect. The JSON records only the flag, not the gain, so near-miss and drift cannot be told apart. Convergence is not a Spec item; Measured stands, but the convergence claim does not hold across runs |
 | 2026-10-18 | Measured | Amended with Shep: per-pair `gain_hi_ticks` and `gain_lo_ticks` added to the JSON, so an unconverged pair shows whether it missed by a few ticks or drifted. `check_clock_json.py` checks every `converged` flag against its gains and the 1% rule. The reviewed run predates this; its file has no gains |
 | 2026-10-18 | Measured | Finding (note 004's reviewed run, `results/clock-dev-lnx01-20261018T215708Z.json`): with the CPU fence, CPU 1 is a housekeeping CPU and carries every service, kernel thread and movable interrupt; overhead max rose to 3.0 ms (p50–p99.9 unchanged at 21.4 / 23.2 / 24.1 ns). Measuring on CPU 1 no longer avoids interrupt load, it maximises it. Earlier results predate the fence and stand. Change of CPU proposed to Shep |
+| 2026-10-18 | Measured | Approved by Shep: overhead moved from CPU 1 to CPU 2, a reserved CPU, where benchmark threads run. CPU 2 is also the load producer, at a different point in the run. Results before this change were on CPU 1 and stand as recorded |
