@@ -121,6 +121,10 @@ inline void write_clock_block(json_writer& w, const clock_report& r) {
             w.member("b", p.b);
             w.member("theta_lo_ns", ns(static_cast<double>(p.theta_lo())));
             w.member("theta_hi_ns", ns(static_cast<double>(p.theta_hi())));
+            // How much lower the second half took each bound, in ticks; positive
+            // means it was still tightening. theta_hi is d1, theta_lo is -d2.
+            w.member("gain_hi_ticks", p.d1_half[0] - p.d1_half[1]);
+            w.member("gain_lo_ticks", p.d2_half[0] - p.d2_half[1]);
             w.member("round_trips", p.round_trips);
             w.member("warmup_discarded", p.warmup_discarded);
             w.member("converged", p.converged);

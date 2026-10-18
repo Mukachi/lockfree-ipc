@@ -83,7 +83,9 @@ separately over the first and second halves. If either bound's second-half minim
 than its first-half minimum by more than 1% of the pair's interval width (d1 + d2), the count
 was not enough to converge, and the pair is marked `converged: false`. So `converged` means a
 longer run would tighten the interval by less than 1%. A fixed tick tolerance does not work:
-under bench-on, minimums settle in steps of 2–4 ticks (Review, 2026-10-18).
+under bench-on, minimums settle in steps of 2–4 ticks (Review, 2026-10-18). Each pair also
+publishes both gains in ticks (`gain_hi_ticks` for d1, `gain_lo_ticks` for d2), so a reader can
+tell a near-miss from drift.
 
 ```mermaid
 flowchart TD
@@ -119,6 +121,7 @@ to the same value; strings are escaped.
   "overhead": { "cpu": 1, "samples": 1000000, "warmup_discarded": 100000,
                 "p50_ns": 0, "p99_ns": 0, "p999_ns": 0, "max_ns": 0 },
   "cross_cpu": [ { "a": 0, "b": 44, "theta_lo_ns": 0, "theta_hi_ns": 0,
+                  "gain_hi_ticks": 0, "gain_lo_ticks": 0,
                   "round_trips": 100000, "warmup_discarded": 1000, "converged": true } ]
 }
 ```
@@ -185,3 +188,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built | S7: every target (7 tests and `clock_bench`) compiles for aarch64 with `-Wall -Wextra -Wpedantic -Werror`, aarch64-linux-gnu-g++ 15.2. Not run on ARM (no emulator here); the fallback's refusal is covered by the logic tests. Running on ARM is for the ARM CI |
 | 2026-10-18 | Measured | Reviewed run: `results/clock-dev-lnx01-20261018T194404Z.json`. dev-lnx01, bench-on (performance governor, deep C-states off, uncore pinned at 2.8 GHz), `clock_bench` Release build, 100,000 round trips per pair, warm-up 1,000 discarded; overhead 1,000,000 samples, warm-up 100,000 discarded. Calibration 2.1974531 ticks/ns, spread 0.03 ppm. Overhead on CPU 1: p50 21.4 ns, p99 23.2, p99.9 24.1, max 7.3 µs; p50 to p99.9 identical to the previous run, max not (254 µs then). Cross-CPU, 87 pairs, none proves disagreement: HT sibling ±22.8 ns (width 45.5); same socket widths 180–210 ns, all converged; other socket 397–425 ns, 4 not converged (32, 71, 84, 86). Every cross-socket pair was in the slow mode this run and the fast mode in the run before, under the same settings: the two-speed effect is a run-to-run state, and the likely cause of the 4 unconverged pairs. Root cause stays with the queue work. Spec: S1–S6, S8, S9 pass; S7 compiles for aarch64, not run there |
 | 2026-10-18 | Measured | Finding from the histogram run (`results/histogram-dev-lnx01-20261018T201320Z.json`), same settings as the reviewed run: 13 of 87 pairs not converged at 100,000 round trips (same socket 2, 7, 9, 48, 54; other socket 30, 32, 35, 39, 70, 73, 75, 78), against 4 (all cross-socket) in the reviewed run. Cross-socket pairs were in the fast mode (median width 293 ns). Same-socket non-convergence is not explained by the two-speed effect. The JSON records only the flag, not the gain, so near-miss and drift cannot be told apart. Convergence is not a Spec item; Measured stands, but the convergence claim does not hold across runs |
+| 2026-10-18 | Measured | Amended with Shep: per-pair `gain_hi_ticks` and `gain_lo_ticks` added to the JSON, so an unconverged pair shows whether it missed by a few ticks or drifted. `check_clock_json.py` checks every `converged` flag against its gains and the 1% rule. The reviewed run predates this; its file has no gains |
