@@ -1,6 +1,6 @@
 # 001 — Clock
 
-**Status:** Draft · **Updated:** 2026-10-18
+**Status:** Agreed · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -120,3 +120,4 @@ Values shown are placeholders, not results.
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
+| 2026-10-18 | Agreed | Approved by Shep without changes |
