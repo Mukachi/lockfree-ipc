@@ -109,10 +109,10 @@ Values shown are placeholders, not results.
 - [x] Header `include/lfipc/bench/clock.hpp`: `start()`, `stop()`, `stamp()`
 - [x] Startup checks (CPUID, kernel clocksource)
 - [x] Calibration
-- [ ] Overhead measurement
+- [x] Overhead measurement
 - [ ] Cross-CPU agreement test
 - [ ] JSON `clock` block
-- [ ] Tests for S1–S7, including a forced-refusal test (S1, S2, S7 done)
+- [ ] Tests for S1–S7, including a forced-refusal test (S1, S2, S4, S7 done)
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
 
 ## Review
@@ -123,3 +123,5 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Agreed | Approved by Shep without changes |
 | 2026-10-18 | Built (partial) | Calibration on dev-lnx01: 2.1974531 ticks/ns in three runs, spread 0.03–0.07 ppm. Nominal is 2.2 GHz; assuming it would be 0.12% off. Not yet a bench-on run |
 | 2026-10-18 | Built (partial) | Cross-check: kernel refined calibration at boot reports 2197.453 MHz, matching ours to the kHz. Its first quick estimate (2197.632 MHz) was 81 ppm off |
+| 2026-10-18 | Built (partial) | Overhead of a start()/stop() pair on dev-lnx01, CPU 2, not bench-on: p50 31–32 ns, p99 47 ns, p99.9 47 ns, max 17–24 µs. The max is about 500× the p50: interruptions, to be explained by the noise-floor meter |
+| 2026-10-18 | Built (partial) | The percentile test caught a floating-point bug: 99.9 / 100 × 1000 rounds up past 999, so a bare ceil() reports the wrong rank in the tail. Fixed with p × n first and a guard |

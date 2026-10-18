@@ -23,3 +23,7 @@ add_test(NAME clock_test COMMAND clock_test)
 add_executable(calibrate_test tests/calibrate_test.cpp)
 target_link_libraries(calibrate_test PRIVATE lfipc)
 add_test(NAME calibrate_test COMMAND calibrate_test)
+
+add_executable(overhead_test tests/overhead_test.cpp)
+target_link_libraries(overhead_test PRIVATE lfipc)
+add_test(NAME overhead_test COMMAND overhead_test)
