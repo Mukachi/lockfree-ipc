@@ -108,11 +108,11 @@ Values shown are placeholders, not results.
 
 - [x] Header `include/lfipc/bench/clock.hpp`: `start()`, `stop()`, `stamp()`
 - [x] Startup checks (CPUID, kernel clocksource)
-- [ ] Calibration
+- [x] Calibration
 - [ ] Overhead measurement
 - [ ] Cross-CPU agreement test
 - [ ] JSON `clock` block
-- [ ] Tests for S1–S7, including a forced-refusal test (S1, S7 done)
+- [ ] Tests for S1–S7, including a forced-refusal test (S1, S2, S7 done)
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
 
 ## Review
@@ -121,3 +121,4 @@ Values shown are placeholders, not results.
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
 | 2026-10-18 | Agreed | Approved by Shep without changes |
+| 2026-10-18 | Built (partial) | Calibration on dev-lnx01: 2.1974531 ticks/ns in three runs, spread 0.03–0.07 ppm. Nominal is 2.2 GHz; assuming it would be 0.12% off. Not yet a bench-on run |

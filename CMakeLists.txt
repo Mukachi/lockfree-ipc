@@ -19,3 +19,7 @@ enable_testing()
 add_executable(clock_test tests/clock_test.cpp)
 target_link_libraries(clock_test PRIVATE lfipc)
 add_test(NAME clock_test COMMAND clock_test)
+
+add_executable(calibrate_test tests/calibrate_test.cpp)
+target_link_libraries(calibrate_test PRIVATE lfipc)
+add_test(NAME calibrate_test COMMAND calibrate_test)
