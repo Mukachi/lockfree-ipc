@@ -7,6 +7,7 @@
 #include <lfipc/bench/cross_cpu.hpp>
 #include <lfipc/bench/histogram.hpp>
 #include <lfipc/bench/load.hpp>
+#include <lfipc/bench/noise.hpp>
 
 #include "test_suts.hpp"
 
@@ -36,6 +37,11 @@ int main(int argc, char** argv) {
         lfipc::test::plain out, back;
         lfipc::bench::run_load(out, c, *r);
         lfipc::bench::run_load(out, back, c, *r);
+    }
+    {
+        // The noise spinner's loop (note 005, S5), default hook.
+        auto nr = std::make_unique<lfipc::bench::noise_result>();
+        lfipc::bench::measure_noise(0, 0.01, 2.2, *nr);
     }
     lfipc::bench::histogram<> h;
     lfipc_hist_record(h, n);

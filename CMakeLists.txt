@@ -126,3 +126,7 @@ if(Python3_FOUND)
            COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_environment_json.py environment.json)
   set_tests_properties(check_environment_json PROPERTIES FIXTURES_REQUIRED environment_json)
 endif()
+
+add_executable(noise_test tests/noise_test.cpp)
+target_link_libraries(noise_test PRIVATE lfipc Threads::Threads)
+add_test(NAME noise_test COMMAND noise_test)

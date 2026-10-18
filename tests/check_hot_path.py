@@ -12,6 +12,9 @@ _M_run, one-way and echo variants) calls only sched_setaffinity, for pinning
 before its loop, and __stack_chk_fail, the stack protector's abort. The SUT,
 the histogram and the clock reads are all inlined into the loops.
 
+Noise S5 (note 005): the spinner's loop, spin_window with the default hook,
+contains no call at all: the stop recording and histogram are inlined.
+
 S6: in the overhead loop, every window from a start() read (rdtsc) to the
 next stop() read (rdtscp) holds only fences and register moves: no call,
 system call, division or floating-point conversion.
@@ -129,6 +132,14 @@ for n, ins in sorted(bodies.items()):
                if (m == "call" or (m == "jmp" and "@plt" in o)) and "<" in o}
     extra = sorted(targets - ALLOWED_CALLS)
     check(not extra, f"load S6 {who}: no calls but pinning" + (f": found {extra}" if extra else ""))
+
+# Noise S5
+spin = {n: ins for n, ins in funcs.items() if "spin_window" in n and "no_hook" in n}
+check(len(spin) == 1, f"noise spinner loop found ({len(spin)})")
+for n, ins in spin.items():
+    targets = sorted({o for m, o in ins if m == "call" or (m == "jmp" and "@plt" in o)})
+    check(not targets and any(m == "rdtsc" for m, _ in ins),
+          "noise S5 spinner loop: TSC reads and no calls" + (f": found {targets}" if targets else ""))
 
 print("FAILED" if failures else "all passed")
 sys.exit(1 if failures else 0)
