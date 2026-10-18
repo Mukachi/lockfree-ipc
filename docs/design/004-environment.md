@@ -1,6 +1,6 @@
 # 004 — Environment capture
 
-**Status:** Draft · **Updated:** 2026-10-18
+**Status:** Agreed · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -35,7 +35,7 @@ It does not:
 | Machine | vendor, product, BIOS version and date | `/sys/class/dmi/id/` |
 | CPU | model, microcode, sockets, cores per socket, threads per core, online CPUs | `/proc/cpuinfo`, `/sys/devices/system/cpu/` |
 | NUMA | each node's CPU list and memory | `/sys/devices/system/node/` |
-| Kernel | release, version, command line, transparent huge pages, CPU vulnerability mitigations | `uname`, `/proc/cmdline`, `/sys/kernel/mm/`, `/sys/devices/system/cpu/vulnerabilities/` |
+| Kernel | release, version, command line, transparent huge pages, CPU vulnerability mitigations | `/proc/sys/kernel/osrelease` and `version`, `/proc/cmdline`, `/sys/kernel/mm/`, `/sys/devices/system/cpu/vulnerabilities/` |
 | Power | governor and turbo per reserved CPU, idle states enabled, uncore min/max per socket | `cpufreq`, `intel_pstate`, `cpuidle`, `intel_uncore_frequency` |
 | Placement | fence (`AllowedCPUs` of the system and user slices), the run's own cgroup and CPU affinity | `/sys/fs/cgroup/`, `/proc/self/` |
 | Build | git commit, tracked tree clean, compiler and version, build type and flags | embedded at build time; see below |
@@ -112,3 +112,4 @@ Values shown are placeholders.
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
+| 2026-10-18 | Agreed | Approved by Shep: refuse unpublished-condition runs to `results/`, refuse a dirty build, provenance at build time. Kernel release and version read from `/proc/sys/kernel/` rather than `uname()`, so tests can fake them |
