@@ -8,6 +8,7 @@
 
 #include <lfipc/bench/clock_block.hpp>
 #include <lfipc/bench/load_block.hpp>
+#include <lfipc/bench/noise_block.hpp>
 #include <lfipc/bench/run_file.hpp>
 
 #include <cstdio>
@@ -22,6 +23,8 @@ int main(int argc, char** argv) {
     const double rates[] = {1e5, 2.5e5, 5e5, 1e6};
     constexpr double seconds_per_rate = 10.0;
 
+    // The floor on the producer and consumer CPUs, before measuring.
+    const auto noise = sample_noise({producer, consumer}, 2.0);
     const auto clk = run_clock();
     cross_cpu_pair pair;
     std::vector<std::unique_ptr<load_result>> runs;
@@ -46,6 +49,7 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (clk.ok) write_noise_block(run.w, noise, clk.cal.ticks_per_ns);
     write_clock_block(run.w, clk);
     if (clk.ok)
         write_load_block(run.w, "one-slot mailbox (tests/test_suts.hpp), echoed on a second", pair, runs,

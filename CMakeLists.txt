@@ -87,8 +87,8 @@ set_tests_properties(histogram_block_test PROPERTIES FIXTURES_SETUP histogram_js
 if(Python3_FOUND)
   add_test(NAME check_histogram_json
            COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_histogram_json.py
-                   histogram_full.json histogram_empty.json clock_ok.json clock_refused.json load_block.json environment.json)
-  set_tests_properties(check_histogram_json PROPERTIES FIXTURES_REQUIRED "histogram_json;clock_json;load_json;environment_json")
+                   histogram_full.json histogram_empty.json clock_ok.json clock_refused.json load_block.json environment.json noise_block.json)
+  set_tests_properties(check_histogram_json PROPERTIES FIXTURES_REQUIRED "histogram_json;clock_json;load_json;environment_json;noise_json")
 endif()
 
 add_executable(record_cost_test tests/record_cost_test.cpp)
@@ -130,3 +130,13 @@ endif()
 add_executable(noise_test tests/noise_test.cpp)
 target_link_libraries(noise_test PRIVATE lfipc Threads::Threads)
 add_test(NAME noise_test COMMAND noise_test)
+
+add_executable(noise_block_test tests/noise_block_test.cpp)
+target_link_libraries(noise_block_test PRIVATE lfipc Threads::Threads)
+add_test(NAME noise_block_test COMMAND noise_block_test)
+set_tests_properties(noise_block_test PROPERTIES FIXTURES_SETUP noise_json)
+if(Python3_FOUND)
+  add_test(NAME check_noise_json
+           COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_noise_json.py noise_block.json)
+  set_tests_properties(check_noise_json PROPERTIES FIXTURES_REQUIRED noise_json)
+endif()
