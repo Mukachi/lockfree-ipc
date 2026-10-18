@@ -1,6 +1,6 @@
 # 005 — Noise-floor meter
 
-**Status:** Draft · **Updated:** 2026-10-18
+**Status:** Agreed · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -82,8 +82,8 @@ Values shown are placeholders.
   stop below the threshold is never recorded, and the loop iteration is published.
 - S3. Stops are counted, not sampled: every gap above the threshold in the window is recorded,
   up to a stated capacity; overflowing it is reported, not silent.
-- S4. A known injected stop (the spinner's own thread sleeping for a set time) is recorded with
-  the right length, within 1 µs.
+- S4. A known injected stop (the spinner held in a timed busy-wait between two reads) is recorded
+  with the right length, within 1 µs.
 - S5. The spinner's loop makes no system call or allocation, checked in the compiled code.
 - S6. `noise_bench` reports each CPU's figures for each repeat, and their spread.
 - S7. Compiles for aarch64 with warnings as errors.
@@ -102,3 +102,4 @@ Values shown are placeholders.
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
+| 2026-10-18 | Agreed | Approved by Shep: 1 µs threshold, a 2 s noise sample per CPU in every run, `noise_bench` on all 40 reserved CPUs (10 s × 5 repeats), `rtla osnoise` output saved beside the run. S4's injected stop is a timed busy-wait, not a sleep: wake-up latency would break the 1 µs check |
