@@ -78,3 +78,11 @@ if(Python3_FOUND)
                    histogram_full.json histogram_empty.json clock_ok.json clock_refused.json)
   set_tests_properties(check_histogram_json PROPERTIES FIXTURES_REQUIRED "histogram_json;clock_json")
 endif()
+
+add_executable(record_cost_test tests/record_cost_test.cpp)
+target_link_libraries(record_cost_test PRIVATE lfipc Threads::Threads)
+add_test(NAME record_cost_test COMMAND record_cost_test)
+
+add_executable(histogram_bench bench/histogram_bench.cpp)
+target_link_libraries(histogram_bench PRIVATE lfipc Threads::Threads)
+target_compile_definitions(histogram_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")

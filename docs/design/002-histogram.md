@@ -1,6 +1,6 @@
 # 002 — Histogram
 
-**Status:** Agreed · **Updated:** 2026-10-18
+**Status:** Built · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -81,6 +81,22 @@ the same k and range.
 `buckets` lists only non-empty buckets, as `[upper edge in ticks, count]`. Ticks, not ns, so
 re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown are placeholders.
 
+**Record cost (S7).** `record()` costs a few ns, below the clock's ~21 ns read overhead, so a
+single call cannot be timed on its own, and note 001 forbids subtracting the overhead. Instead
+`bench/histogram_bench` times `start(); record(v); stop()` and, in the same loop on the same CPU,
+`start(); stop()` with no record. Both distributions are published side by side, unsubtracted.
+1,000,000 samples per case after 100,000 warm-up, pinned to CPU 1 (as note 001's overhead),
+values generated before timing. Three cases:
+
+| Case | Values | What it shows |
+|---|---|---|
+| `hot` | always 300 ticks | one bucket, always in L1 |
+| `realistic` | lognormal, median 900 ticks, σ 0.3 | latency-like spread straddling 2^k = 1,024 ticks |
+| `worst` | uniform over 0 … 2^40 | a different bucket each time |
+
+The whole histogram (128 KB) fits in the 256 KB L2, so `worst` measures L1 misses served from L2,
+not misses to memory. The run's JSON also carries the full `clock` block (note 001, S3).
+
 **Why not HdrHistogram itself:** see ADR 0001.
 
 ## Spec
@@ -113,3 +129,5 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
 | 2026-10-18 | Agreed | Approved by Shep without changes: k = 10, upper-edge percentiles, 10-sample rule, own implementation (ADR 0001 accepted). Wording of the 10-sample rule aligned with its formula ("above", not "at or above") |
 | 2026-10-18 | Built (partial) | Header and tests. S2 checked on every value below 2^20, both sides of every power of two to 2^40, 1M random values, and percentiles against a sorted copy on uniform, lognormal and bimodal data (2M samples each). S1: 0 minor page faults recording 2M values across all buckets; the same meter counts 22 on counters allocated but never written, so it can see faults. Disassembly showed GCC turned the index's `max()` into two branches (a zero check before `bsr`, and a shortcut below 2^k). The second would mispredict when values straddle 1,024 ticks (466 ns), which is where cross-socket latencies sit. Fixed by taking the bit width of `v | 2^(k−1)`; `check_hot_path.py` now requires `record()` to have no call and exactly one conditional branch (overflow). `nearest_rank` moved to `rank.hpp`, shared with note 001's overhead |
 | 2026-10-18 | Built (partial) | JSON block built (`histogram_block.hpp`). Added `max_bits` to the fields: without the range a reader cannot tell where overflow starts or whether two histograms can be merged. Buckets written one per line; 2M lognormal samples give 4,500 lines. `check_histogram_json.py` checks exact fields, S5 against the rank rule, buckets plus overflow equal count, and S6 (no key like mean/avg/average) across the histogram and clock files; it fails on a doctored block with `mean_ns` and a wrong null. JSON writer gained `null`, `optional` and one-line arrays; the clock's output is unchanged |
+| 2026-10-18 | Agreed | Record-cost method agreed with Shep: side by side with the bare clock read, unsubtracted, not batched (batching would publish averages); three value cases |
+| 2026-10-18 | Built | Record cost built: `record_cost.hpp`, `bench/histogram_bench`. Disassembly of the timed loop: between the reads, only the inlined `record()` (count, min/max by `cmov`, the overflow branch, index, increment); the value is loaded before `start()` and the delta stored after the closing fence. Short run, not bench-on, CPU 1: bare read p50 56 ticks; with `record()` hot 64, realistic 64 (p99.9 132), worst 68 (p99.9 144). All tasks but the reviewed bench-on run done |
