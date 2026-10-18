@@ -70,13 +70,16 @@ int main() {
         check(with.d1 == 1 && without.d1 == 100, "warm-up samples are discarded");
         check(without.round_trips == 990 && without.warmup_discarded == 10, "counts reported");
     }
-    // Convergence: a new minimum in the second half more than one tick lower.
+    // Convergence: tolerance is 1% of the width. Latency 1000 gives a width near 2000.
     {
-        auto t = synthetic(1000, 0, 100);
-        t.b_recv[900] = t.a_send[900] + 98;
-        check(!summarise(t, 0).converged, "second-half minimum 2 ticks lower: not converged");
-        t.b_recv[900] = t.a_send[900] + 99;
-        check(summarise(t, 0).converged, "second-half minimum 1 tick lower: converged");
+        auto t = synthetic(1000, 0, 1000);
+        t.b_recv[900] = t.a_send[900] + 970;
+        check(!summarise(t, 0).converged, "second half 30 ticks lower on width 1970: not converged");
+        t.b_recv[900] = t.a_send[900] + 990;
+        check(summarise(t, 0).converged, "second half 10 ticks lower on width 1990: converged");
+        t.b_recv[900] = t.a_send[900] + 1000;
+        t.a_recv[900] = t.b_send[900] + 970;
+        check(!summarise(t, 0).converged, "applies to d2 as well as d1");
     }
     // Input validation.
     {

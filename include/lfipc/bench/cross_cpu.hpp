@@ -41,7 +41,8 @@ struct cross_cpu_pair {
 
 // The bounds alone, from recorded round trips, so the arithmetic is testable.
 // The first `warmup` round trips are discarded. Converged when neither bound's
-// second-half minimum beats its first-half minimum by more than one tick.
+// second-half minimum beats its first-half minimum by more than 1% of the
+// interval width d1 + d2.
 inline cross_cpu_pair summarise_cross_cpu(const std::vector<ticks>& a_send,
                                           const std::vector<ticks>& b_recv,
                                           const std::vector<ticks>& b_send,
@@ -71,7 +72,9 @@ inline cross_cpu_pair summarise_cross_cpu(const std::vector<ticks>& a_send,
     std::copy(d2h, d2h + 2, p.d2_half);
     p.d1 = std::min(d1h[0], d1h[1]);
     p.d2 = std::min(d2h[0], d2h[1]);
-    p.converged = d1h[0] - d1h[1] <= 1 && d2h[0] - d2h[1] <= 1;
+    // gain <= width / 100, in integers.
+    const std::int64_t width = p.d1 + p.d2;
+    p.converged = 100 * (d1h[0] - d1h[1]) <= width && 100 * (d2h[0] - d2h[1]) <= width;
     p.ok = true;
     return p;
 }

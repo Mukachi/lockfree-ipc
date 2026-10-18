@@ -78,14 +78,11 @@ A is CPU 0. It takes housekeeping interrupts, but the bounds are minimums: an in
 round trip only produces a larger sample, which the minimum discards.
 
 Each pair runs a fixed number of round trips (default 10,000). The minimum is also taken
-separately over the first and second halves. If the second half's minimum is lower than the
-first half's by more than one tick, the count was not enough to converge, and the pair is
-marked `converged: false`.
-
-**Proposed, not yet agreed:** the tolerance becomes 1% of the pair's interval width (d1 + d2)
-instead of one tick, so `converged` means a longer run would tighten the interval by less than
-1%. Under bench-on, minimums settle in steps of 2–4 ticks, below which one tick cannot
-distinguish (Review, 2026-10-18).
+separately over the first and second halves. If either bound's second-half minimum is lower
+than its first-half minimum by more than 1% of the pair's interval width (d1 + d2), the count
+was not enough to converge, and the pair is marked `converged: false`. So `converged` means a
+longer run would tighten the interval by less than 1%. A fixed tick tolerance does not work:
+under bench-on, minimums settle in steps of 2–4 ticks (Review, 2026-10-18).
 
 ```mermaid
 flowchart TD
@@ -162,3 +159,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built (partial) | Cross-CPU, bench-on run 1: 87 pairs, none proves disagreement. Widths: HT sibling 47 ns (−24 to +23); same socket 177–203 ns; other socket 397–429 ns. Hyper-thread siblings of one core give identical bounds to the tick (1/45, 2/46, 3/47): the minimum is set by the physical core. 51 of 87 converged. Cross-socket widths are wider than without bench-on (290–390 ns); unexplained, possibly less turbo headroom with deep C-states off |
 | 2026-10-18 | Built (partial) | Cross-CPU, bench-on run 2, with second-half gain printed: 48 of 87 converged. Gain 0–4 ticks on every same-socket pair; cross-socket mostly ≤ 4, five pairs at 9–18 ticks. The minimums have converged; the one-tick tolerance is below their step size. Tolerance change proposed in Design |
 | 2026-10-18 | Built (partial) | Same run: in 17 of 44 cross-socket pairs, d2 (B → A) was 220–280 ticks (≈ 100–125 ns) lower in the first half than the second, giving widths of ≈ 310 ns against ≈ 425 ns. Pairs fall in runs of consecutive CPUs (76–84), so a machine-wide state is changing over tens of ms; absent in run 1. Bounds stay valid (fenced reads cannot make d2 too small), but the cross-socket figure is not reproducible, and the convergence check, which only looks for a lower second half, misses it. Suspect uncore frequency scaling; to check with turbostat (uncore MHz) during a bench-on run |
+| 2026-10-18 | Agreed | Convergence tolerance changed to 1% of the interval width, approved by Shep. Same machine, not bench-on, after the change: 48 of 87 converged |
