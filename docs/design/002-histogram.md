@@ -1,6 +1,6 @@
 # 002 — Histogram
 
-**Status:** Built · **Updated:** 2026-10-18
+**Status:** Measured · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -119,7 +119,7 @@ not misses to memory. The run's JSON also carries the full `clock` block (note 0
 - [x] JSON `histogram` block
 - [x] Tests S1–S6, S8: exhaustive check of every value below 2^20 for S2; random and bimodal
       distributions against a sorted copy; merge; page faults counted with `getrusage`
-- [ ] Record cost (S7) under bench-on; results reviewed here
+- [x] Record cost (S7) under bench-on; results reviewed here
 
 ## Review
 
@@ -131,3 +131,4 @@ not misses to memory. The run's JSON also carries the full `clock` block (note 0
 | 2026-10-18 | Built (partial) | JSON block built (`histogram_block.hpp`). Added `max_bits` to the fields: without the range a reader cannot tell where overflow starts or whether two histograms can be merged. Buckets written one per line; 2M lognormal samples give 4,500 lines. `check_histogram_json.py` checks exact fields, S5 against the rank rule, buckets plus overflow equal count, and S6 (no key like mean/avg/average) across the histogram and clock files; it fails on a doctored block with `mean_ns` and a wrong null. JSON writer gained `null`, `optional` and one-line arrays; the clock's output is unchanged |
 | 2026-10-18 | Agreed | Record-cost method agreed with Shep: side by side with the bare clock read, unsubtracted, not batched (batching would publish averages); three value cases |
 | 2026-10-18 | Built | Record cost built: `record_cost.hpp`, `bench/histogram_bench`. Disassembly of the timed loop: between the reads, only the inlined `record()` (count, min/max by `cmov`, the overflow branch, index, increment); the value is loaded before `start()` and the delta stored after the closing fence. Short run, not bench-on, CPU 1: bare read p50 56 ticks; with `record()` hot 64, realistic 64 (p99.9 132), worst 68 (p99.9 144). All tasks but the reviewed bench-on run done |
+| 2026-10-18 | Measured | Reviewed run: `results/histogram-dev-lnx01-20261018T201320Z.json`. dev-lnx01, bench-on (uncore pinned), CPU 1, 1,000,000 samples per case, 100,000 warm-up discarded, Release build. Bare `start(); stop()`: p50 21.4 ns, p99 23.2, p99.9 24.1, max 5.5 µs, identical to the clock block's overhead from the same run (two separate loops agree). With `record()`: hot p50 24.6 / p99 27.3 / p99.9 28.7 ns; realistic 24.6 / 27.3 / 42.8; worst 25.5 / 30.0 / 48.2. `record()` adds about 3 ns (7 ticks) at p50, 4–7 ns at p99. The worst-case p99.9 (+24 ns) is L1 misses served from L2, as predicted. The realistic p99.9 (+19 ns) is unexplained: its few hundred buckets should stay in L1. Open, small. Spec: S1–S8 pass (S6 also checked on this results file) |
