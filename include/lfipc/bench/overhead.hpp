@@ -2,9 +2,9 @@
 #pragma once
 
 #include <lfipc/bench/clock.hpp>
+#include <lfipc/bench/rank.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <sched.h>
 #include <vector>
@@ -14,12 +14,7 @@ namespace lfipc::bench {
 // Nearest-rank percentile of sorted data, p in (0, 100].
 inline ticks percentile_sorted(const std::vector<ticks>& sorted, double p) {
     if (sorted.empty()) return 0;
-    // p * n first, and a small guard: 99.9 / 100 * 1000 is 999.0000000000001 in
-    // floating point, and a bare ceil() would step to the next rank.
-    const double exact = p * static_cast<double>(sorted.size()) / 100.0;
-    auto rank = static_cast<std::size_t>(std::ceil(exact - 1e-9));
-    rank = std::clamp<std::size_t>(rank, 1, sorted.size());
-    return sorted[rank - 1];
+    return sorted[nearest_rank(p, sorted.size()) - 1];
 }
 
 struct overhead {

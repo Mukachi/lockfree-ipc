@@ -3,6 +3,10 @@
 Usage: check_hot_path.py <objdump> <hot_path_subject binary>
 Checked against a deliberately broken subject: both checks fail on it.
 
+Histogram S1 (note 002): record() contains no call or system call, so it
+cannot allocate or enter the kernel, and exactly one conditional branch (the
+overflow check), as the note's Design states.
+
 S6: in the overhead loop, every window from a start() read (rdtsc) to the
 next stop() read (rdtscp) holds only fences and register moves: no call,
 system call, division or floating-point conversion.
@@ -101,6 +105,14 @@ for n, ins in lambdas.items():
     check(all(fenced_before(ins, i) for i in reads), f"S8 {who}: every read is fenced ({len(reads)} reads)")
     check(any(i + 1 < len(ins) and ins[i + 1][0] == "lfence" for i in reads),
           f"S8 {who}: send read has an lfence after it")
+
+# Histogram S1
+rec = funcs.get("lfipc_hist_record", [])
+calls = [f"{m} {o}" for m, o in rec if m in ("call", "syscall", "sysenter", "int") or (m == "jmp" and "@plt" in o)]
+check(len(rec) > 0, f"histogram record() found ({len(rec)} instructions)")
+check(not calls, "histogram S1 record() makes no call or system call" + (f": found {calls}" if calls else ""))
+branches = [m for m, _ in rec if m.startswith("j") and m != "jmp"]
+check(len(branches) == 1, f"histogram record() has one conditional branch, the overflow check ({len(branches)}: {branches})")
 
 print("FAILED" if failures else "all passed")
 sys.exit(1 if failures else 0)

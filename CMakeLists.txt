@@ -63,3 +63,7 @@ endif()
 add_executable(clock_bench bench/clock_bench.cpp)
 target_link_libraries(clock_bench PRIVATE lfipc Threads::Threads)
 target_compile_definitions(clock_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")
+
+add_executable(histogram_test tests/histogram_test.cpp)
+target_link_libraries(histogram_test PRIVATE lfipc)
+add_test(NAME histogram_test COMMAND histogram_test)

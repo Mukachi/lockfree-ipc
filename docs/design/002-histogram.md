@@ -98,9 +98,9 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
 ## Tasks
 
 - [x] ADR 0001: own histogram vs HdrHistogram
-- [ ] `include/lfipc/bench/histogram.hpp`: record, merge, percentiles
+- [x] `include/lfipc/bench/histogram.hpp`: record, merge, percentiles
 - [ ] JSON `histogram` block
-- [ ] Tests S1–S6, S8: exhaustive check of every value below 2^20 for S2; random and bimodal
+- [ ] Tests S1–S6, S8 (S1–S5, S8 done; S6 with the JSON block): exhaustive check of every value below 2^20 for S2; random and bimodal
       distributions against a sorted copy; merge; page faults counted with `getrusage`
 - [ ] Record cost (S7) under bench-on; results reviewed here
 
@@ -110,3 +110,4 @@ re-analysis uses the run's own `ticks_per_ns` from the clock block. Values shown
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
 | 2026-10-18 | Agreed | Approved by Shep without changes: k = 10, upper-edge percentiles, 10-sample rule, own implementation (ADR 0001 accepted). Wording of the 10-sample rule aligned with its formula ("above", not "at or above") |
+| 2026-10-18 | Built (partial) | Header and tests. S2 checked on every value below 2^20, both sides of every power of two to 2^40, 1M random values, and percentiles against a sorted copy on uniform, lognormal and bimodal data (2M samples each). S1: 0 minor page faults recording 2M values across all buckets; the same meter counts 22 on counters allocated but never written, so it can see faults. Disassembly showed GCC turned the index's `max()` into two branches (a zero check before `bsr`, and a shortcut below 2^k). The second would mispredict when values straddle 1,024 ticks (466 ns), which is where cross-socket latencies sit. Fixed by taking the bit width of `v | 2^(k−1)`; `check_hot_path.py` now requires `record()` to have no call and exactly one conditional branch (overflow). `nearest_rank` moved to `rank.hpp`, shared with note 001's overhead |
