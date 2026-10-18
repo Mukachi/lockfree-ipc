@@ -6,9 +6,14 @@
 #include <lfipc/bench/cross_cpu.hpp>  // detail::pin_to
 #include <lfipc/bench/histogram.hpp>
 
+#include <sys/resource.h>
+
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <limits>
+#include <map>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -23,6 +28,9 @@ struct stop_event {
     ticks length;  // gap between consecutive reads
 };
 
+// Per-type counts for one CPU, e.g. {"LOC": 1003, "RES": 2} or {"TIMER": 998}.
+using counter_map = std::map<std::string, std::uint64_t>;
+
 struct noise_result {
     bool ok = false;
     std::string reason;
@@ -36,9 +44,68 @@ struct noise_result {
     std::vector<stop_event> events;  // the first `capacity` stops, in order
     bool overflow = false;      // more stops than capacity (S3)
     histogram<> lengths;        // every stop's length
+    // Coarse causes over the window, no root needed: this CPU's column of
+    // /proc/interrupts and /proc/softirqs (non-zero types only), and the
+    // spinning thread's involuntary context switches.
+    counter_map interrupts, softirqs;
+    long involuntary_switches = 0;
 };
 
+// One CPU's column of /proc/interrupts or /proc/softirqs. The header row names
+// the CPU columns ("CPU0 CPU1 ..."); rows with fewer columns (ERR, MIS) are skipped.
+inline counter_map per_cpu_counts(const std::string& text, int cpu) {
+    counter_map out;
+    std::istringstream in(text);
+    std::string line;
+    if (!std::getline(in, line)) return out;
+    int column = -1, i = 0;
+    {
+        std::istringstream h(line);
+        for (std::string w; h >> w; ++i)
+            if (w == "CPU" + std::to_string(cpu)) column = i;
+    }
+    if (column < 0) return out;
+    while (std::getline(in, line)) {
+        std::istringstream row(line);
+        std::string name;
+        if (!(row >> name) || name.back() != ':') continue;
+        name.pop_back();
+        std::uint64_t v = 0;
+        bool found = false;
+        for (int c = 0; c <= column; ++c) {
+            if (!(row >> v)) break;
+            found = c == column;
+        }
+        if (found) out[name] = v;
+    }
+    return out;
+}
+
+// after - before, keeping only types that moved.
+inline counter_map counter_delta(const counter_map& before, const counter_map& after) {
+    counter_map d;
+    for (const auto& [k, v] : after) {
+        const auto it = before.find(k);
+        const std::uint64_t b = it == before.end() ? 0 : it->second;
+        if (v > b) d[k] = v - b;
+    }
+    return d;
+}
+
 namespace detail {
+
+inline std::string slurp(const char* path) {
+    std::ifstream f(path);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+inline long involuntary_switches() {
+    rusage u;
+    getrusage(RUSAGE_THREAD, &u);
+    return u.ru_nivcsw;
+}
 
 struct no_hook {
     void operator()(std::uint64_t) const noexcept {}
@@ -94,7 +161,16 @@ void measure_noise(int cpu, double seconds, double ticks_per_ns, noise_result& r
     bool pinned = false;
     std::thread t([&] {
         pinned = detail::pin_to(cpu);
-        if (pinned) detail::spin_window(r, capacity, hook);
+        if (!pinned) return;
+        // Counters are read outside the measured loop, on the measured CPU.
+        const auto irq0 = per_cpu_counts(detail::slurp("/proc/interrupts"), cpu);
+        const auto sirq0 = per_cpu_counts(detail::slurp("/proc/softirqs"), cpu);
+        const long sw0 = detail::involuntary_switches();
+        detail::spin_window(r, capacity, hook);
+        const long sw1 = detail::involuntary_switches();
+        r.interrupts = counter_delta(irq0, per_cpu_counts(detail::slurp("/proc/interrupts"), cpu));
+        r.softirqs = counter_delta(sirq0, per_cpu_counts(detail::slurp("/proc/softirqs"), cpu));
+        r.involuntary_switches = sw1 - sw0;
     });
     t.join();
     if (!pinned) {

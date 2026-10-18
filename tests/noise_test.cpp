@@ -70,6 +70,32 @@ int main() {
               "S3 beyond capacity: every stop counted and in the histogram, overflow reported");
     }
 
+    // Coarse causes: parsing one CPU's column, and the live counters.
+    {
+        const char* irq =
+            "           CPU0       CPU1       CPU2\n"
+            "  0:         40          0          0   IO-APIC    2-edge      timer\n"
+            " 24:          1          5        900   PCI-MSI 1-edge      nvme0q1\n"
+            "LOC:       1000       2000       3000   Local timer interrupts\n"
+            "RES:          7          8          9   Rescheduling interrupts\n"
+            "ERR:          0\n"
+            "MIS:          0\n";
+        const auto c2 = per_cpu_counts(irq, 2);
+        check(c2.size() == 4 && c2.at("LOC") == 3000 && c2.at("24") == 900 && c2.at("0") == 0 && !c2.count("ERR"),
+              "per-CPU column parsed, single-column rows skipped");
+        check(per_cpu_counts(irq, 7).empty(), "a CPU not in the header gives nothing");
+        const auto d = counter_delta({{"LOC", 10}, {"RES", 5}}, {{"LOC", 1010}, {"RES", 5}, {"TLB", 2}});
+        check(d.size() == 2 && d.at("LOC") == 1000 && d.at("TLB") == 2, "delta keeps only the types that moved");
+
+        measure_noise(2, 0.5, tpn, *r);
+        const auto loc = r->interrupts.count("LOC") ? r->interrupts.at("LOC") : 0;
+        std::printf("info  cpu 2, 0.5 s: %llu stops; LOC %llu; interrupt types %zu, softirq types %zu, "
+                    "involuntary switches %ld\n",
+                    (unsigned long long)r->stops, (unsigned long long)loc, r->interrupts.size(), r->softirqs.size(),
+                    r->involuntary_switches);
+        check(r->ok && loc > 0, "live: local timer interrupts counted on the spinning CPU");
+    }
+
     measure_noise(-1, 0.1, tpn, *r);
     check(!r->ok && !r->reason.empty(), "unpinnable CPU refuses with a reason");
 

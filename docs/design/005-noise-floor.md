@@ -91,7 +91,7 @@ Values shown are placeholders.
 ## Tasks
 
 - [x] Spinner and stop recording, with S2–S5 tests
-- [ ] Coarse cause counters (interrupts, softirqs, context switches)
+- [x] Coarse cause counters (interrupts, softirqs, context switches)
 - [ ] JSON `noise` block, added to the three benchmark programs
 - [ ] `noise_bench`
 - [ ] Reviewed runs: `noise_bench` and `rtla osnoise` under bench-on
@@ -104,3 +104,4 @@ Values shown are placeholders.
 | 2026-10-18 | Draft | Written for review |
 | 2026-10-18 | Agreed | Approved by Shep: 1 µs threshold, a 2 s noise sample per CPU in every run, `noise_bench` on all 40 reserved CPUs (10 s × 5 repeats), `rtla osnoise` output saved beside the run. S4's injected stop is a timed busy-wait, not a sleep: wake-up latency would break the 1 µs check |
 | 2026-10-18 | Built (partial) | Spinner (`noise.hpp`): `spin_window` reads with `stamp()` and records every gap above the threshold into a pre-faulted array and a histogram; counts carry on past capacity. Tests: shortest gap 5.5 ns against a 1 µs threshold (S2); all 20 injected 100 µs stops found, all within 1 µs (S4); capacity 4 with 20 stops: all counted, overflow reported (S3). S5 checked in the compiled code: the loop has TSC reads and no call; fails on a hook that calls `clock_gettime`. The first test run was invalid: Claude's stray test threads were spinning on CPUs 2 and 3 (52% stopped, 3.4 ms longest); after removing them, CPU 2 unfenced: 0.9% stopped, longest 460 µs, 570 stops in 0.5 s |
+| 2026-10-18 | Built (partial) | Coarse causes: the measured CPU's column of `/proc/interrupts` and `/proc/softirqs` (non-zero types), and involuntary switches, read by the spinning thread before and after the window, outside the loop. First sample, CPU 2 unfenced, 0.5 s: 524 stops, 501 local timer interrupts (LOC), 6 involuntary switches: nearly every stop above 1 µs is a timer tick at `CONFIG_HZ=1000`. One sample, not bench-on |
