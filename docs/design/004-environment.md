@@ -1,6 +1,6 @@
 # 004 — Environment capture
 
-**Status:** Built · **Updated:** 2026-10-18
+**Status:** Measured · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -108,7 +108,7 @@ was missing.
 - [x] Bench-mode check and refusal
 - [x] JSON `environment` block, added to `clock_bench`, `histogram_bench`, `load_bench`
 - [x] Tests S1–S6
-- [ ] A run under bench-on and one without; results reviewed here
+- [x] A run under bench-on and one without; results reviewed here
 
 ## Review
 
@@ -117,3 +117,4 @@ was missing.
 | 2026-10-18 | Draft | Written for review |
 | 2026-10-18 | Agreed | Approved by Shep: refuse unpublished-condition runs to `results/`, refuse a dirty build, provenance at build time. Kernel release and version read from `/proc/sys/kernel/` rather than `uname()`, so tests can fake them |
 | 2026-10-18 | Built | `environment.hpp` (reader under a root prefix, bench-mode check, block), `run_file.hpp` (shared by the three benchmark programs: run file name, environment first, refusal, write), `cmake/build_info.cmake` (commit and clean flag at every build, rewritten only on change). Added to the agreed fields: `bench_mode` (ok and the failed list) on every run, so an unpublished run shows what was missing. Fake-tree test: every field read; a bench-mode tree passes; each condition broken alone is named alone; idle states on housekeeping CPUs are not checked; an empty tree reads as nulls and fails. Live, outside bench mode: a run to `results/` refuses in 21 ms with all nine failures named and nothing measured; a run elsewhere goes ahead, `published: false`. `check_environment_json.py` checks exact fields, refused-iff-published-and-failing, and that a refused file has nothing after the block. A fresh build directory builds and passes (the generated header is ordered before its users). Compiles for aarch64; clean under TSan and ASan/UBSan |
+| 2026-10-18 | Measured | Without bench mode: `clock_bench` to `results/` refused in 21 ms, all nine failures named, nothing measured (file deleted). Under bench-on with `bench-run`: `results/clock-dev-lnx01-20261018T215708Z.json`, published, every condition met; reserved CPUs derived as 2–21,46–65; cgroup `bench.slice`; commit a277b03, clean. Only `POLL` is enabled on reserved CPUs: `bench-on` disables C1 too, stricter than assumed. Finding from the block: clock overhead max 3.0 ms on CPU 1 (5–254 µs before the fence). CPU 1 is housekeeping, so the fence now crowds every service, kernel thread and interrupt onto it; notes 001 and 002 measure on CPU 1. Spec: S1–S6 pass |
