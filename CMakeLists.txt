@@ -14,6 +14,18 @@ add_library(lfipc INTERFACE)
 target_include_directories(lfipc INTERFACE include)
 target_compile_options(lfipc INTERFACE -Wall -Wextra -Wpedantic -Werror)
 
+# Build provenance (note 004): regenerated at every build, rewritten only on change.
+string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type_upper)
+add_custom_target(build_info ALL
+  COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR} -DOUT=${CMAKE_BINARY_DIR}/generated/lfipc/build_info.hpp
+          -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
+          "-DFLAGS=${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type_upper}} -Wall -Wextra -Wpedantic -Werror"
+          -P ${CMAKE_SOURCE_DIR}/cmake/build_info.cmake
+  BYPRODUCTS ${CMAKE_BINARY_DIR}/generated/lfipc/build_info.hpp
+  COMMENT "Recording build provenance")
+target_include_directories(lfipc INTERFACE ${CMAKE_BINARY_DIR}/generated)
+add_dependencies(lfipc build_info)
+
 find_package(Threads REQUIRED)
 
 enable_testing()
@@ -75,8 +87,8 @@ set_tests_properties(histogram_block_test PROPERTIES FIXTURES_SETUP histogram_js
 if(Python3_FOUND)
   add_test(NAME check_histogram_json
            COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_histogram_json.py
-                   histogram_full.json histogram_empty.json clock_ok.json clock_refused.json load_block.json)
-  set_tests_properties(check_histogram_json PROPERTIES FIXTURES_REQUIRED "histogram_json;clock_json;load_json")
+                   histogram_full.json histogram_empty.json clock_ok.json clock_refused.json load_block.json environment.json)
+  set_tests_properties(check_histogram_json PROPERTIES FIXTURES_REQUIRED "histogram_json;clock_json;load_json;environment_json")
 endif()
 
 add_executable(record_cost_test tests/record_cost_test.cpp)
@@ -104,3 +116,13 @@ endif()
 add_executable(load_bench bench/load_bench.cpp)
 target_link_libraries(load_bench PRIVATE lfipc Threads::Threads)
 target_compile_definitions(load_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")
+
+add_executable(environment_test tests/environment_test.cpp)
+target_link_libraries(environment_test PRIVATE lfipc)
+add_test(NAME environment_test COMMAND environment_test)
+set_tests_properties(environment_test PROPERTIES FIXTURES_SETUP environment_json)
+if(Python3_FOUND)
+  add_test(NAME check_environment_json
+           COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_environment_json.py environment.json)
+  set_tests_properties(check_environment_json PROPERTIES FIXTURES_REQUIRED environment_json)
+endif()

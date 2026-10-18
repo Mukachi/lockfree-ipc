@@ -8,33 +8,16 @@
 
 #include <lfipc/bench/clock_block.hpp>
 #include <lfipc/bench/load_block.hpp>
+#include <lfipc/bench/run_file.hpp>
 
 #include <cstdio>
-#include <ctime>
-#include <fstream>
 #include <memory>
-#include <string>
-#include <unistd.h>
 #include <vector>
-
-namespace {
-
-std::string default_path() {
-    char host[256] = "unknown";
-    gethostname(host, sizeof(host) - 1);
-    char stamp[32];
-    const std::time_t now = std::time(nullptr);
-    std::tm utc;
-    gmtime_r(&now, &utc);
-    std::strftime(stamp, sizeof(stamp), "%Y%m%dT%H%M%SZ", &utc);
-    return std::string(LFIPC_RESULTS_DIR) + "/load-" + host + "-" + stamp + ".json";
-}
-
-}  // namespace
 
 int main(int argc, char** argv) {
     using namespace lfipc::bench;
-    const std::string path = argc > 1 ? argv[1] : default_path();
+    run_file run(argc, argv, LFIPC_RESULTS_DIR, "load");
+    if (run.refused) return run.finish(false, "load_bench");
     constexpr int producer = 2, consumer = 3;
     const double rates[] = {1e5, 2.5e5, 5e5, 1e6};
     constexpr double seconds_per_rate = 10.0;
@@ -63,21 +46,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    json_writer w;
-    w.begin_object();
-    write_clock_block(w, clk);
-    if (clk.ok) write_load_block(w, "one-slot mailbox (tests/test_suts.hpp), echoed on a second", pair, runs,
-                                 clk.cal.ticks_per_ns);
-    w.end_object();
-
-    std::ofstream f(path);
-    f << w.str() << '\n';
-    f.close();
-    if (!f) {
-        std::fprintf(stderr, "load_bench: cannot write %s\n", path.c_str());
-        return 2;
-    }
+    write_clock_block(run.w, clk);
+    if (clk.ok)
+        write_load_block(run.w, "one-slot mailbox (tests/test_suts.hpp), echoed on a second", pair, runs,
+                         clk.cal.ticks_per_ns);
     if (!clk.ok) std::fprintf(stderr, "load_bench: clock refused: %s\n", clk.reason.c_str());
-    std::printf("wrote %s\n", path.c_str());
-    return all_ok ? 0 : 1;
+    return run.finish(all_ok, "load_bench");
 }

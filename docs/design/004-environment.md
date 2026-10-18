@@ -1,6 +1,6 @@
 # 004 — Environment capture
 
-**Status:** Agreed · **Updated:** 2026-10-18
+**Status:** Built · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -70,6 +70,7 @@ and every refusal against a fake `/proc` and `/sys` tree.
 ```json
 "environment": {
   "published": true, "ok": true,
+  "bench_mode": { "ok": true, "failed": [] },
   "machine": { "vendor": "HP", "product": "ProLiant DL380 Gen9", "bios": "P89", "bios_date": "08/29/2024" },
   "cpu": { "model": "...", "microcode": "0xb000041", "sockets": 2, "cores_per_socket": 22,
            "threads_per_core": 2, "online": "0-87" },
@@ -85,7 +86,9 @@ and every refusal against a fake `/proc` and `/sys` tree.
 }
 ```
 
-Values shown are placeholders.
+Values shown are placeholders. A refused run adds `reason` after `ok`, naming every failed
+condition. `bench_mode` is written on every run, published or not, so a smoke run shows what
+was missing.
 
 ## Spec
 
@@ -100,11 +103,11 @@ Values shown are placeholders.
 
 ## Tasks
 
-- [ ] Reader under a root prefix, and the fake tree for tests
-- [ ] Build provenance from CMake
-- [ ] Bench-mode check and refusal
-- [ ] JSON `environment` block, added to `clock_bench`, `histogram_bench`, `load_bench`
-- [ ] Tests S1–S6
+- [x] Reader under a root prefix, and the fake tree for tests
+- [x] Build provenance from CMake
+- [x] Bench-mode check and refusal
+- [x] JSON `environment` block, added to `clock_bench`, `histogram_bench`, `load_bench`
+- [x] Tests S1–S6
 - [ ] A run under bench-on and one without; results reviewed here
 
 ## Review
@@ -113,3 +116,4 @@ Values shown are placeholders.
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
 | 2026-10-18 | Agreed | Approved by Shep: refuse unpublished-condition runs to `results/`, refuse a dirty build, provenance at build time. Kernel release and version read from `/proc/sys/kernel/` rather than `uname()`, so tests can fake them |
+| 2026-10-18 | Built | `environment.hpp` (reader under a root prefix, bench-mode check, block), `run_file.hpp` (shared by the three benchmark programs: run file name, environment first, refusal, write), `cmake/build_info.cmake` (commit and clean flag at every build, rewritten only on change). Added to the agreed fields: `bench_mode` (ok and the failed list) on every run, so an unpublished run shows what was missing. Fake-tree test: every field read; a bench-mode tree passes; each condition broken alone is named alone; idle states on housekeeping CPUs are not checked; an empty tree reads as nulls and fails. Live, outside bench mode: a run to `results/` refuses in 21 ms with all nine failures named and nothing measured; a run elsewhere goes ahead, `published: false`. `check_environment_json.py` checks exact fields, refused-iff-published-and-failing, and that a refused file has nothing after the block. A fresh build directory builds and passes (the generated header is ordered before its users). Compiles for aarch64; clean under TSan and ASan/UBSan |
