@@ -27,6 +27,8 @@ struct cross_cpu_pair {
     // d1 = min(tB_recv - tA_send), d2 = min(tA_recv - tB_send), in ticks.
     // B's offset from A lies in [-d2, d1].
     std::int64_t d1 = 0, d2 = 0;
+    // Minimums over the first and second halves, for the convergence check.
+    std::int64_t d1_half[2] = {0, 0}, d2_half[2] = {0, 0};
     bool converged = false;
     bool ok = false;
     std::string reason;  // empty when ok
@@ -65,6 +67,8 @@ inline cross_cpu_pair summarise_cross_cpu(const std::vector<ticks>& a_send,
         d1h[h] = std::min(d1h[h], static_cast<std::int64_t>(b_recv[i] - a_send[i]));
         d2h[h] = std::min(d2h[h], static_cast<std::int64_t>(a_recv[i] - b_send[i]));
     }
+    std::copy(d1h, d1h + 2, p.d1_half);
+    std::copy(d2h, d2h + 2, p.d2_half);
     p.d1 = std::min(d1h[0], d1h[1]);
     p.d2 = std::min(d2h[0], d2h[1]);
     p.converged = d1h[0] - d1h[1] <= 1 && d2h[0] - d2h[1] <= 1;

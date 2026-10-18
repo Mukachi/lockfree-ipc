@@ -112,8 +112,10 @@ int main() {
         ++ok;
         converged += p.converged;
         disagree += p.disagreement_proven();
-        std::printf("info  0 vs %2d  theta [%7.1f, %7.1f] ns  width %6.1f ns%s\n", p.b,
-                    ns(p.theta_lo()), ns(p.theta_hi()), ns(p.d1 + p.d2),
+        // Second half's gain over the first, in ticks: positive means it found a lower minimum.
+        std::printf("info  0 vs %2d  theta [%7.1f, %7.1f] ns  width %6.1f ns  gain d1 %4lld d2 %4lld%s\n",
+                    p.b, ns(p.theta_lo()), ns(p.theta_hi()), ns(p.d1 + p.d2),
+                    (long long)(p.d1_half[0] - p.d1_half[1]), (long long)(p.d2_half[0] - p.d2_half[1]),
                     p.converged ? "" : "  not converged");
     }
     std::printf("info  %zu pairs, %zu converged, %zu proven disagreement\n", pairs.size(), converged,
