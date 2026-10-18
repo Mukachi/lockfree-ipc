@@ -1,6 +1,6 @@
 # 003 — Open-loop load generator
 
-**Status:** Draft · **Updated:** 2026-10-18
+**Status:** Agreed · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -30,7 +30,7 @@ It does not:
 
 ## Design
 
-**The clock question (decision needed).** A one-way latency is the consumer's TSC read minus the
+**The clock question.** A one-way latency is the consumer's TSC read minus the
 producer's, on different CPUs. Note 001 shows the TSCs agree, but it can only bound the offset to
 the cache-line round trip: about ±100 ns on one socket, ±200 ns across. That is the size of the
 latencies being measured. Intel TSCs on one board are in fact driven from one clock and synced by
@@ -42,7 +42,7 @@ firmware, and the kernel checks it at boot, but our own evidence does not go bel
 | B. Round trip only | the consumer echoes each message back on a second SUT instance; producer stamp − intended send time | one CPU's TSC, no sync assumption | measures two hops; halving it assumes symmetry |
 | **C. Both** | one-way and round trip, published side by side | one-way's offset bound stated next to it | two queues per run |
 
-Proposed: **C**. The round trip is the number that needs no clock assumption; the one-way is the
+Chosen: **C**. The round trip is the number that needs no clock assumption; the one-way is the
 number readers expect, published with note 001's bound for that CPU pair beside it.
 
 **Schedule.** Intended send times are `t_i = t_0 + i·T` in ticks, for an offered rate of 1/T.
@@ -88,7 +88,7 @@ histogram(s), and for one-way the offset bound for that CPU pair from the clock 
 
 - [ ] Schedule and producer/consumer loops, with a test SUT
 - [ ] Lateness histogram and refusal
-- [ ] Round trip (if option B or C)
+- [ ] Round trip
 - [ ] JSON `load` block
 - [ ] Tests S1–S8, including the stall and fixed-delay SUTs
 - [ ] First run under bench-on; results reviewed here
@@ -98,3 +98,4 @@ histogram(s), and for one-way the offset bound for that CPU pair from the clock 
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-18 | Draft | Written for review |
+| 2026-10-18 | Agreed | Approved by Shep: option C (one-way and round trip side by side), constant spacing, refusal at lateness p99 > T, warm-up 10% and at least 100 ms |

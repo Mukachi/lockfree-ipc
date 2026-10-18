@@ -17,7 +17,7 @@ Only Spec and Review are mandatory. Any section can be one line.
 |---|---|---|
 | [001](design/001-clock.md) | Clock | Measured |
 | [002](design/002-histogram.md) | Histogram | Measured |
-| [003](design/003-open-loop-load.md) | Open-loop load generator | Draft |
+| [003](design/003-open-loop-load.md) | Open-loop load generator | Agreed |
 
 ## Decision records
 
