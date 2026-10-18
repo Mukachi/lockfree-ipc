@@ -1,6 +1,6 @@
 # 003 — Open-loop load generator
 
-**Status:** Agreed · **Updated:** 2026-10-18
+**Status:** Built · **Updated:** 2026-10-18
 
 ## Proposal
 
@@ -93,7 +93,7 @@ directly with note 001's method.
 - [x] Lateness histogram and refusal
 - [x] Round trip
 - [x] JSON `load` block
-- [ ] Tests S1–S8, including the stall and fixed-delay SUTs
+- [x] Tests S1–S8, including the stall and fixed-delay SUTs
 - [ ] First run under bench-on; results reviewed here
 
 ## Review
@@ -108,3 +108,4 @@ directly with note 001's method.
 | 2026-10-18 | Built (partial) | Refusal built (`evaluate_lateness`, S3): tested on synthetic lateness (0.5% late accepted, 2% refused with p99 and T in the reason, too few to judge refused). Outside bench mode every live test run now refuses for lateness (p99 11–126 µs against T of 1–10 µs), as expected on an unfenced machine; the tests check message correctness separately and accept a lateness refusal as a finished run. Histograms are filled even when a run refuses |
 | 2026-10-18 | Built (partial) | Round trip built, as agreed with Shep: the consumer echoes each message on a second SUT; the producer takes echoes while it waits (and while a send is refused, so neither side can block the other) and records arrival − intended on its own TSC. One-way and round trip come from the same run; the echo work is in both. Tests: every message measured both ways, in order; with a 5 µs delay each way every round trip is ≥ 10 µs and every one-way ≥ 5 µs. Not bench-on, CPUs 2→3: round trip p50 389 ns, one-way 195 ns, almost exactly half; with symmetric paths that puts the 2/3 TSC offset far inside note 001's ±100 ns bound (supporting evidence, not proof). Under TSan the run falls ≈ 200 ms behind and both p50s land in one bucket, so the test checks round trip ≥ one-way, not >. Clean under TSan and ASan/UBSan, compiles for aarch64 |
 | 2026-10-18 | Built (partial) | JSON block (`load_block.hpp`) and `bench/load_bench`: clock flow, the 2→3 pair measured directly, then 100k, 250k, 500k, 1M/s for 10 s of messages each against the one-slot mailbox, echoed. S7 reworded: the clock block has no 2→3 bound, and combining two CPU-0 bounds would double it. A refused rate keeps its reason and the lateness histogram that refused it, and no latency results. `check_load_json.py` checks both kinds on a synthetic file. Smoke run, unfenced: 49 s, all four rates refused for lateness (p99 11–13 µs), exit 1, file complete; pair bound −81 to +113 ns |
+| 2026-10-18 | Built | S4: a test wrapper (`closed_loop`) makes any SUT closed-loop: one message in flight, stamped with its actual send time. Same stalling SUT (1 ms every 100 ms), 1M/s, not bench-on: open-loop p99 333 µs, p99.9 923 µs; closed-loop p99 246 ns, p99.9 265 ns. Both see the stall once, in the max (≈ 1 ms); the closed-loop run's own lateness (p99 367 µs) is the tell. S6 checked in the compiled code: each generator thread body, both variants, calls only `sched_setaffinity` (pinning, before the loop) and `__stack_chk_fail`; SUT, histogram and clock reads are inlined. Fails on a SUT that calls `clock_gettime`, in exactly the threads that call it. TSan found a deadlock in `closed_loop`: it set its in-flight flag after making the message visible, so a fast consumer could clear it first. Natively the window is nanoseconds and the test passed by luck; under TSan it hung every time. Fixed by setting the flag first. Every task but the reviewed run is done |

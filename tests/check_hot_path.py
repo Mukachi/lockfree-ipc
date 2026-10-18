@@ -7,6 +7,11 @@ Histogram S1 (note 002): record() contains no call or system call, so it
 cannot allocate or enter the kernel, and exactly one conditional branch (the
 overflow check), as the note's Design states.
 
+Load S6 (note 003): each generator thread body (the run_load_impl lambdas'
+_M_run, one-way and echo variants) calls only sched_setaffinity, for pinning
+before its loop, and __stack_chk_fail, the stack protector's abort. The SUT,
+the histogram and the clock reads are all inlined into the loops.
+
 S6: in the overhead loop, every window from a start() read (rdtsc) to the
 next stop() read (rdtscp) holds only fences and register moves: no call,
 system call, division or floating-point conversion.
@@ -113,6 +118,17 @@ check(len(rec) > 0, f"histogram record() found ({len(rec)} instructions)")
 check(not calls, "histogram S1 record() makes no call or system call" + (f": found {calls}" if calls else ""))
 branches = [m for m, _ in rec if m.startswith("j") and m != "jmp"]
 check(len(branches) == 1, f"histogram record() has one conditional branch, the overflow check ({len(branches)}: {branches})")
+
+# Load S6
+ALLOWED_CALLS = {"sched_setaffinity@plt", "__stack_chk_fail@plt"}
+bodies = {n: ins for n, ins in funcs.items() if "run_load_impl" in n and "lambda" in n and "_M_run" in n}
+check(len(bodies) >= 4, f"load generator thread bodies found, both variants ({len(bodies)})")
+for n, ins in sorted(bodies.items()):
+    who = ("echo " if "run_load_impl<true" in n else "one-way ") + re.search(r"lambda\(\)#\d+", n)[0]
+    targets = {re.search(r"<([^>]*)>", o)[1] for m, o in ins
+               if (m == "call" or (m == "jmp" and "@plt" in o)) and "<" in o}
+    extra = sorted(targets - ALLOWED_CALLS)
+    check(not extra, f"load S6 {who}: no calls but pinning" + (f": found {extra}" if extra else ""))
 
 print("FAILED" if failures else "all passed")
 sys.exit(1 if failures else 0)

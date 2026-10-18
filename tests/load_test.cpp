@@ -117,6 +117,25 @@ int main() {
               "S5 round trip at least twice the delay, one-way at least once");
     }
 
+    // S4: the receiver stalls 1 ms every 100 ms. Open-loop counts every message
+    // due during a stall; closed-loop sends nothing during it and hides it.
+    {
+        c.rate_per_s = 1e6;
+        c.messages = 300'000;  // 300 ms after warm-up: about three stalls
+        const auto every = static_cast<ticks>(100e6 * tpn), length = static_cast<ticks>(1e6 * tpn);
+        t::stalling open_sut(every, length);
+        run_load(open_sut, c, *r);
+        report("stall open", *r, tpn);
+        const auto open999 = r->latency.percentile(99.9);
+        t::closed_loop<t::stalling> closed_sut(every, length);
+        run_load(closed_sut, c, *r);
+        report("stall closed", *r, tpn);
+        const auto closed999 = r->latency.percentile(99.9);
+        const auto half_ms = static_cast<ticks>(0.5e6 * tpn);
+        check(open999 && *open999 >= half_ms, "S4 open-loop p99.9 shows the 1 ms stall (>= 0.5 ms)");
+        check(closed999 && *closed999 < half_ms, "S4 closed-loop p99.9 hides it (< 0.5 ms)");
+    }
+
     // S3: the refusal decision, on synthetic lateness. T = 1,000 ticks.
     {
         histogram<> ok_h, late_h, few_h;

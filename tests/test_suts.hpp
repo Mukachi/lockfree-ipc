@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <utility>
 
 namespace lfipc::test {
 
@@ -100,7 +101,35 @@ struct send_stall {
     bool try_receive(message& m) { return box.take(m); }
 };
 
+// Turns a SUT closed-loop: one message in flight, stamped with its actual send
+// time. Fed to the open-loop generator, latency is then measured the way a
+// closed-loop generator measures it, which hides stalls (S4).
+template <typename Inner>
+struct closed_loop {
+    template <typename... A>
+    explicit closed_loop(A&&... a) : inner(std::forward<A>(a)...) {}
+    Inner inner;
+    alignas(64) std::atomic<bool> in_flight{false};
+    // in_flight is set before the message is visible: set after, the consumer
+    // could take the message and clear the flag first, leaving it set with
+    // nothing in flight, and both sides waiting for ever.
+    bool send(const message& m) {
+        if (in_flight.load(std::memory_order_acquire)) return false;
+        in_flight.store(true, std::memory_order_release);
+        if (!inner.send(message{m.seq, bench::start()})) {
+            in_flight.store(false, std::memory_order_release);
+            return false;
+        }
+        return true;
+    }
+    bool try_receive(message& m) {
+        if (!inner.try_receive(m)) return false;
+        in_flight.store(false, std::memory_order_release);
+        return true;
+    }
+};
+
 static_assert(bench::load_sut<plain> && bench::load_sut<fixed_delay> && bench::load_sut<stalling> &&
-              bench::load_sut<send_stall>);
+              bench::load_sut<send_stall> && bench::load_sut<closed_loop<stalling>>);
 
 }  // namespace lfipc::test
