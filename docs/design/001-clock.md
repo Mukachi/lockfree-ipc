@@ -134,7 +134,7 @@ Values shown are placeholders, not results.
 - [x] Startup checks (CPUID, kernel clocksource)
 - [x] Calibration
 - [x] Overhead measurement
-- [ ] Cross-CPU agreement test
+- [x] Cross-CPU agreement test
 - [ ] JSON `clock` block
 - [ ] Tests for S1–S8, including a forced-refusal test (S1, S2, S4, S7 done)
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
@@ -151,3 +151,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built (partial) | The percentile test caught a floating-point bug: 99.9 / 100 × 1000 rounds up past 999, so a bare ceil() reports the wrong rank in the tail. Fixed with p × n first and a guard |
 | 2026-10-18 | Agreed | Cross-CPU section: interval width explained as the round-trip floor; reference CPU and round-trip count left as an open question |
 | 2026-10-18 | Agreed | Open question settled with Shep: A stays CPU 0; 10,000 round trips per pair with a half-vs-half convergence check; fenced reads required (new S8) |
+| 2026-10-18 | Built (partial) | Cross-CPU on dev-lnx01, not bench-on (schedutil; idle cores at 1.2 GHz): 87 pairs in 0.8 s, none proves disagreement. Widths: HT sibling (44) 51 ns, symmetric ±25.5; same socket 150–290 ns; other socket 290–390 ns. Only 21 of 87 converged: minimums fall with count (cross-socket d2 686 → 438 ticks from 10k to 1M round trips) and vary 20–60 ticks run to run. Cause is the target core's frequency ramping during a ~3 ms pair, not the interconnect; the convergence check flagged it as intended. Count and tolerance to be judged under bench-on |
