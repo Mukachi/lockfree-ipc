@@ -15,9 +15,11 @@ Only Spec and Review are mandatory. Any section can be one line.
 
 | # | Component | Status |
 |---|---|---|
-| [001](design/001-clock.md) | Clock | Agreed |
+| [001](design/001-clock.md) | Clock | Measured |
+| [002](design/002-histogram.md) | Histogram | Draft |
 
 ## Decision records
 
 | # | Decision | Status |
 |---|---|---|
+| [0001](adr/0001-own-histogram.md) | Own histogram instead of HdrHistogram | Proposed |
