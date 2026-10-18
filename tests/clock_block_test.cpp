@@ -48,6 +48,7 @@ int main() {
     if (clock_is_tsc) {
         check(ok.ok && ok.reason.empty(), "healthy run publishes");
         check(ok.cross_cpu.size() + 1 == online_cpus().size(), "cross-CPU block covers every other CPU");
+        check(ok.ovh.cpu == 1, "overhead measured on CPU 1");
     } else {
         check(!ok.ok, "S7 fallback refuses");
     }
@@ -63,6 +64,32 @@ int main() {
     if (clock_is_tsc) check(has(refused.reason, "hpet"), "S1 reason names the clocksource");
     check(refused.cross_cpu.empty() && refused.ovh.samples == 0, "S1 refusal produces no results");
     write(refused, "clock_refused.json");
+
+    // An unpinnable overhead CPU refuses rather than measuring somewhere else.
+    opt.clocksource_path = kernel_clocksource_path;
+    opt.overhead_cpu = -1;
+    if (clock_is_tsc) check(!run_clock(opt).ok, "unpinnable overhead CPU refuses");
+
+    // S5 and S9: the cross-CPU decision, on synthetic pairs.
+    cross_cpu_pair good;
+    good.ok = true;
+    good.a = 0;
+    good.b = 1;
+    good.d1 = 300;
+    good.d2 = 200;
+    auto disagree = good;
+    disagree.b = 2;
+    disagree.d2 = -50;
+    auto unmeasured = good;
+    unmeasured.b = 3;
+    unmeasured.ok = false;
+    unmeasured.reason = "cannot pin to CPU 3";
+    check(evaluate_cross_cpu({good, good}, 2.0).ok, "agreeing pairs accepted");
+    const auto d = evaluate_cross_cpu({good, disagree}, 2.0);
+    check(!d.ok && has(d.reason, "0 vs 2") && has(d.reason, "[25.0, 150.0] ns"),
+          "S9 proven disagreement refuses, naming the CPUs and the bounds");
+    const auto u = evaluate_cross_cpu({good, unmeasured}, 2.0);
+    check(!u.ok && has(u.reason, "cannot pin to CPU 3"), "S5 unmeasured pair refuses");
 
     json_writer w;
     w.begin_object();

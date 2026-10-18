@@ -47,9 +47,10 @@ Intrinsics (`__rdtsc`, `__rdtscp`, `_mm_lfence`), no inline assembly.
 `CLOCK_MONOTONIC_RAW` and the TSC at both ends and compute ticks per ns. Publish the median and
 the spread in ppm. Spread above a threshold (default 10 ppm): refuse.
 
-**Overhead.** 1,000,000 back-to-back `start()`/`stop()` pairs, pinned, after warm-up. Publish
-p50, p99, p99.9 and max, in ticks and ns. No dependency on the histogram component: a sorted
-array is enough here.
+**Overhead.** 1,000,000 back-to-back `start()`/`stop()` pairs, pinned to CPU 1, after warm-up.
+Not CPU 0: it takes the most housekeeping interrupts, which would inflate the tail. A CPU that
+cannot be pinned refuses the run. Publish p50, p99, p99.9 and max, in ticks and ns. No
+dependency on the histogram component: a sorted array is enough here.
 
 **Cross-CPU agreement.** CPU A and CPU B ping-pong a cache line. A records `tA_send` before
 writing; B records `tB_recv` on seeing it, then `tB_send` before replying; A records `tA_recv`.
@@ -95,7 +96,9 @@ flowchart TD
     E -- no --> X
     E -- yes --> F[Measure read overhead]
     F --> G[Cross-CPU agreement: CPU 0 vs all]
-    G --> H[Write clock block to run JSON]
+    G --> I{Any pair proves disagreement?}
+    I -- yes --> X
+    I -- no --> H[Write clock block to run JSON]
 ```
 
 **Output.** A `clock` block in each run's JSON, written by `write_clock_block()`, which every
@@ -139,6 +142,8 @@ Values shown are placeholders, not results.
   published measurements.
 - S8. Cross-CPU reads are fenced: the send read cannot move after the store, and the receive
   read cannot move before the load that observes the other CPU's write.
+- S9. A cross-CPU pair that proves disagreement (a negative bound) refuses the run; the reason
+  names the CPUs and the bounds.
 
 ## Tasks
 
@@ -150,7 +155,7 @@ Values shown are placeholders, not results.
 - [x] Characterise the two-speed cross-socket return transfer (Review, 2026-10-18); root
       cause deferred to the queue work, where cross-socket latency is the measured quantity
 - [x] JSON `clock` block: `json.hpp`, `write_clock_block()`, `bench/clock_bench`
-- [ ] Tests for S1–S8, including a forced-refusal test (S1, S2, S3, S4, S7 done)
+- [ ] Tests for S1–S9, including a forced-refusal test (S1, S2, S3, S4, S5, S7, S9 done; S6, S8 left)
 - [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
 
 ## Review
@@ -174,3 +179,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Built (partial) | Two-speed cross-socket effect: with uncore at 2.8 GHz throughout, 0 of 220 cross-socket pairs were fast, so uncore frequency does not cause it. Memory placement does not decide it either: `numactl --membind=0` gave 0 of 44 fast in one run and 30 of 44 in the next. A machine state that comes and goes during a run; coherence directory or snoop state is the likeliest cause (the ≈ 100 ns gap is about one memory access). Bounds are valid in both modes and each run publishes its own, so the clock proceeds. Also explains bench-on run 1's wider cross-socket widths: the earlier run without bench-on contained fast-mode pairs. Decided with Shep: root cause deferred to the queue work |
 | 2026-10-18 | Agreed | Output amended, approved by Shep: hand-written JSON writer; `clock_bench` writes the run file; refusal block with `ok` and `reason`; sample counts, warm-up and overhead CPU added to the fields |
 | 2026-10-18 | Built (partial) | JSON block built. `clock_bench` on dev-lnx01, not bench-on: 1.8 s, 87 pairs, file parses with exactly the agreed fields (checked by `check_clock_json.py`, S3). Forced refusal writes `ok: false` with the reason and no results (S1). Overhead ran on CPU 62, wherever the process started: the overhead CPU is not controlled |
+| 2026-10-18 | Agreed | Approved by Shep: overhead pinned to CPU 1, not CPU 0 (interrupt load inflates the tail; CPU 0 stays the cross-CPU reference, where minimums discard interrupts). Proven disagreement refuses the run (new S9) |

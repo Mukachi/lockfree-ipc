@@ -7,6 +7,7 @@
 #include <lfipc/bench/json.hpp>
 #include <lfipc/bench/overhead.hpp>
 
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@ struct clock_options {
     double max_spread_ppm = default_max_spread_ppm;
     std::size_t overhead_samples = 1'000'000;
     std::size_t overhead_warmup = 100'000;
+    int overhead_cpu = 1;  // not CPU 0: its interrupt load would inflate the tail
     int reference_cpu = 0;
     std::size_t round_trips = default_round_trips;
     std::size_t cross_cpu_warmup = default_cross_cpu_warmup;
@@ -33,6 +35,22 @@ struct clock_report {
     overhead ovh;
     std::vector<cross_cpu_pair> cross_cpu;
 };
+
+// The cross-CPU decision alone, so every refusal path is testable: a pair that
+// could not be measured (S5) or that proves disagreement (S9) refuses the run.
+inline check_result evaluate_cross_cpu(const std::vector<cross_cpu_pair>& pairs, double ticks_per_ns) {
+    for (const auto& p : pairs) {
+        const std::string name = "cross-CPU " + std::to_string(p.a) + " vs " + std::to_string(p.b);
+        if (!p.ok) return {false, name + ": " + p.reason};
+        if (p.disagreement_proven()) {
+            char bounds[96];
+            std::snprintf(bounds, sizeof(bounds), "[%.1f, %.1f] ns", p.theta_lo() / ticks_per_ns,
+                          p.theta_hi() / ticks_per_ns);
+            return {false, name + ": TSCs disagree, offset bounds " + bounds + " exclude zero"};
+        }
+    }
+    return {true, {}};
+}
 
 // The flowchart: checks, calibration, overhead, cross-CPU. Stops at the first
 // refusal, leaving the later results empty.
@@ -50,14 +68,20 @@ inline clock_report run_clock(const clock_options& opt = {}) {
         r.reason = r.cal.reason;
         return r;
     }
-    r.ovh = measure_overhead(opt.overhead_samples, opt.overhead_warmup);
-    r.cross_cpu = measure_cross_cpu(opt.reference_cpu, opt.round_trips, opt.cross_cpu_warmup);
-    for (const auto& p : r.cross_cpu) {
-        if (!p.ok) {
-            r.reason = "cross-CPU " + std::to_string(p.a) + " vs " + std::to_string(p.b) + ": " + p.reason;
-            return r;
-        }
+    // measure_overhead pins without reporting failure, so check the CPU first.
+    if (!detail::pin_to(opt.overhead_cpu)) {
+        r.reason = "cannot pin to overhead CPU " + std::to_string(opt.overhead_cpu);
+        return r;
     }
+    const auto ovh = measure_overhead(opt.overhead_samples, opt.overhead_warmup, opt.overhead_cpu);
+    auto cross = measure_cross_cpu(opt.reference_cpu, opt.round_trips, opt.cross_cpu_warmup);
+    const auto agree = evaluate_cross_cpu(cross, r.cal.ticks_per_ns);
+    if (!agree.ok) {
+        r.reason = agree.reason;
+        return r;
+    }
+    r.ovh = ovh;
+    r.cross_cpu = std::move(cross);
     r.ok = true;
     return r;
 }
