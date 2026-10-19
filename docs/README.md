@@ -20,7 +20,7 @@ Only Spec and Review are mandatory. Any section can be one line.
 | [003](design/003-open-loop-load.md) | Open-loop load generator | Measured |
 | [004](design/004-environment.md) | Environment capture | Measured |
 | [005](design/005-noise-floor.md) | Noise-floor meter | Measured |
-| [006](design/006-spsc-queue.md) | SPSC queue | Draft |
+| [006](design/006-spsc-queue.md) | SPSC queue | Agreed |
 
 ## Decision records
 

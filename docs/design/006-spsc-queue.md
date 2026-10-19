@@ -1,6 +1,6 @@
 # 006 — SPSC queue
 
-**Status:** Draft · **Updated:** 2026-10-19
+**Status:** Agreed · **Updated:** 2026-10-19
 
 ## Proposal
 
@@ -95,3 +95,4 @@ today). Each is wrapped in the load generator's `send`/`try_receive` interface, 
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-19 | Draft | Written for review |
+| 2026-10-19 | Agreed | Approved by Shep: measured variants v1–v3, in-process now with a shared-memory-ready layout, moodycamel and Boost.Lockfree baselines, pairs 2→3 and 2→46, rates 100k–10M/s, 16-byte messages. Noted for later: `run.py report --check` does not exist yet and is needed before README numbers |
