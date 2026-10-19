@@ -15,6 +15,10 @@ the histogram and the clock reads are all inlined into the loops.
 Noise S5 (note 005): the spinner's loop, spin_window with the default hook,
 contains no call at all: the stop recording and histogram are inlined.
 
+SPSC S3 (note 006): try_push and try_pop make no call and contain no locked
+instruction, fence or xchg (an implicit lock): on x86, release and acquire
+are plain moves.
+
 S6: in the overhead loop, every window from a start() read (rdtsc) to the
 next stop() read (rdtscp) holds only fences and register moves: no call,
 system call, division or floating-point conversion.
@@ -58,6 +62,9 @@ def functions(objdump, binary):
         if m and name is not None:
             words = m[1].split()
             while words and words[0] in PREFIXES:
+                # Keep a lock prefix visible as its own entry: SPSC S3 checks for it.
+                if words[0] == "lock":
+                    funcs[name].append(("lock", ""))
                 words.pop(0)
             if words:
                 funcs[name].append((words[0], " ".join(words[1:])))
@@ -140,6 +147,16 @@ for n, ins in spin.items():
     targets = sorted({o for m, o in ins if m == "call" or (m == "jmp" and "@plt" in o)})
     check(not targets and any(m == "rdtsc" for m, _ in ins),
           "noise S5 spinner loop: TSC reads and no calls" + (f": found {targets}" if targets else ""))
+
+# SPSC S3
+FORBIDDEN = {"lock", "mfence", "lfence", "sfence", "xchg"}
+ops = {n: ins for n, ins in funcs.items() if n.startswith("lfipc_spsc_")}
+check(len(ops) >= 2, f"SPSC push and pop subjects found ({len(ops)})")
+for n, ins in sorted(ops.items()):
+    calls = sorted({o for m, o in ins if m == "call" or (m == "jmp" and "@plt" in o)})
+    bad = sorted({m for m, _ in ins if m.rstrip("bwlq") in FORBIDDEN or m in FORBIDDEN})
+    check(not calls and not bad, f"SPSC S3 {n}: no call, lock, fence or xchg"
+          + (f": found {calls + bad}" if calls or bad else ""))
 
 print("FAILED" if failures else "all passed")
 sys.exit(1 if failures else 0)

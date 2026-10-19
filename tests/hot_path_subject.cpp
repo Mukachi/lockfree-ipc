@@ -2,12 +2,14 @@
 // overhead loop sits behind a fixed, unmangled symbol (S6); the cross-CPU
 // threads are found by their lambda names (S8). The histogram's record() sits
 // behind its own symbol (note 002, S1). The load generator's threads are found
-// by their lambda names inside run_load_impl, run with the test mailbox (note 003, S6). Counts come from the command
+// by their lambda names inside run_load_impl, run with the test mailbox (note 003, S6).
+// SPSC try_push/try_pop sit behind lfipc_spsc_<variant>_<op> (note 006, S3). Counts come from the command
 // line so the compiler cannot specialise the loops. Spec: docs/design/001-clock.md
 #include <lfipc/bench/cross_cpu.hpp>
 #include <lfipc/bench/histogram.hpp>
 #include <lfipc/bench/load.hpp>
 #include <lfipc/bench/noise.hpp>
+#include <lfipc/spsc.hpp>
 
 #include "test_suts.hpp"
 
@@ -23,6 +25,14 @@ extern "C" [[gnu::noinline]] lfipc::bench::overhead lfipc_s6_overhead(std::size_
 
 extern "C" [[gnu::noinline]] void lfipc_hist_record(lfipc::bench::histogram<>& h, lfipc::bench::ticks v) {
     h.record(v);
+}
+
+using spsc_v1_subject = lfipc::spsc_v1<lfipc::bench::message, 1024>;
+extern "C" [[gnu::noinline]] bool lfipc_spsc_v1_push(spsc_v1_subject& q, const lfipc::bench::message& m) {
+    return q.try_push(m);
+}
+extern "C" [[gnu::noinline]] bool lfipc_spsc_v1_pop(spsc_v1_subject& q, lfipc::bench::message& m) {
+    return q.try_pop(m);
 }
 
 int main(int argc, char** argv) {
@@ -42,6 +52,11 @@ int main(int argc, char** argv) {
         // The noise spinner's loop (note 005, S5), default hook.
         auto nr = std::make_unique<lfipc::bench::noise_result>();
         lfipc::bench::measure_noise(0, 0.01, 2.2, *nr);
+    }
+    {
+        auto q = std::make_unique<spsc_v1_subject>();
+        lfipc::bench::message m{1, 2};
+        if (!lfipc_spsc_v1_push(*q, m) || !lfipc_spsc_v1_pop(*q, m)) return 1;
     }
     lfipc::bench::histogram<> h;
     lfipc_hist_record(h, n);

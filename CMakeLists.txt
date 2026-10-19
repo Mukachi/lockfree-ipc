@@ -144,3 +144,7 @@ endif()
 add_executable(noise_bench bench/noise_bench.cpp)
 target_link_libraries(noise_bench PRIVATE lfipc Threads::Threads)
 target_compile_definitions(noise_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")
+
+add_executable(spsc_test tests/spsc_test.cpp)
+target_link_libraries(spsc_test PRIVATE lfipc Threads::Threads)
+add_test(NAME spsc_test COMMAND spsc_test)
