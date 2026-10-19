@@ -21,7 +21,7 @@ Only Spec and Review are mandatory. Any section can be one line.
 | [004](design/004-environment.md) | Environment capture | Measured |
 | [005](design/005-noise-floor.md) | Noise-floor meter | Measured |
 | [006](design/006-spsc-queue.md) | SPSC queue | Measured |
-| [007](design/007-results-report.md) | Results report | Agreed |
+| [007](design/007-results-report.md) | Results report | Built |
 
 ## Decision records
 

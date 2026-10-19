@@ -191,3 +191,10 @@ if(LFIPC_BASELINES)
   target_compile_definitions(spsc_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results"
     LFIPC_RWQ_VERSION="${LFIPC_RWQ_VERSION}" LFIPC_BOOST_VERSION="${LFIPC_BOOST_VERSION}")
 endif()
+
+# Note 007: one number everywhere. A stale RESULTS.md or README figure fails
+# the test suite like any other bug.
+if(Python3_FOUND)
+  add_test(NAME run_py_test COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/run_py_test.py ${CMAKE_SOURCE_DIR})
+  add_test(NAME report_check COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/run.py report --check)
+endif()

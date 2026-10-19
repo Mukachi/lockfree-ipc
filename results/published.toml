@@ -1,0 +1,24 @@
+# Published result sets: the files run.py report reads (design note 007).
+# results/ keeps every run, superseded ones included; publishing is listing
+# a file here. Each set must share one commit, machine and kernel command line.
+
+[noise]
+note = "005"
+runs = ["noise-dev-lnx01-20261019T121236Z.json"]
+
+# The clock blocks of the published SPSC runs: the same conditions.
+[clock]
+note = "001"
+runs = ["spsc-dev-lnx01-20261019T163730Z.json",
+        "spsc-dev-lnx01-20261019T165847Z.json",
+        "spsc-dev-lnx01-20261019T172005Z.json"]
+
+[load]
+note = "003"
+runs = ["load-dev-lnx01-20261019T174123Z.json"]
+
+[spsc]
+note = "006"
+runs = ["spsc-dev-lnx01-20261019T163730Z.json",
+        "spsc-dev-lnx01-20261019T165847Z.json",
+        "spsc-dev-lnx01-20261019T172005Z.json"]
