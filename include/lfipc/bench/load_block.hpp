@@ -12,14 +12,15 @@
 
 namespace lfipc::bench {
 
-// Writes `"load": {...}` into the object the caller has open. `pair` is the
+// Writes `"<key>": {...}` (default "load") into the object the caller has open. `pair` is the
 // producer/consumer CPU pair measured with note 001's method: the one-way
 // figures are published beside its offset bound (S7). A refused rate keeps its
 // reason and the lateness histogram that refused it, and no latency results.
 inline void write_load_block(json_writer& w, std::string_view sut, const cross_cpu_pair& pair,
-                             const std::vector<std::unique_ptr<load_result>>& runs, double ticks_per_ns) {
+                             const std::vector<std::unique_ptr<load_result>>& runs, double ticks_per_ns,
+                             std::string_view key = "load") {
     const auto ns = [ticks_per_ns](double t) { return t / ticks_per_ns; };
-    w.key("load");
+    w.key(key);
     w.begin_object();
     w.member("sut", sut);
     w.member("producer_cpu", pair.a);

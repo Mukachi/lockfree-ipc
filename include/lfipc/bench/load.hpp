@@ -80,6 +80,17 @@ inline std::size_t load_warmup(double rate_per_s, std::size_t messages) {
 
 namespace detail {
 
+// Offsets from t0 for every message, computed before the run into a
+// pre-faulted array. Called by the producer after pinning, so the array's
+// pages are first touched, and so placed, on the producer's NUMA node. Not
+// inlined: it allocates, and note 003's S6 check allows exactly this call in
+// the producer's thread body, outside its loop.
+[[gnu::noinline]] inline void fill_schedule(std::vector<ticks>& offset, std::size_t n, double interval_ticks) {
+    offset.resize(n);
+    for (std::size_t i = 0; i < n; ++i)
+        offset[i] = static_cast<ticks>(std::llround(static_cast<double>(i) * interval_ticks));
+}
+
 // Return path for a one-way run: nothing comes back.
 struct no_return {
     bool send(const message&) { return true; }
@@ -109,9 +120,8 @@ void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
     const std::size_t warm = r.warmup_discarded;
     const std::size_t n = warm + c.messages;
 
-    // Offsets from t0, computed before the run into a pre-faulted array.
-    std::vector<ticks> offset(n);
-    for (std::size_t i = 0; i < n; ++i) offset[i] = static_cast<ticks>(std::llround(static_cast<double>(i) * r.interval_ticks));
+    // Filled by the producer (detail::fill_schedule) before it reports ready.
+    std::vector<ticks> offset;
 
     std::atomic<int> ready{0}, failed{0};
     std::atomic<ticks> t0{0};  // 0 until go; then the schedule's start
@@ -146,6 +156,7 @@ void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
     });
     std::thread producer([&] {
         if (!detail::pin_to(c.producer_cpu)) failed.fetch_add(1);
+        detail::fill_schedule(offset, n, r.interval_ticks);
         ready.fetch_add(1, std::memory_order_release);
         ticks base;
         while ((base = t0.load(std::memory_order_acquire)) == 0) detail::cpu_relax();

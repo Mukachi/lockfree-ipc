@@ -154,6 +154,9 @@ add_test(NAME spsc_test COMMAND spsc_test)
 option(LFIPC_BASELINES "Fetch and build the baseline queues" ON)
 if(LFIPC_BASELINES)
   include(FetchContent)
+  # Defined once: used to fetch, and recorded in every run's JSON.
+  set(LFIPC_RWQ_VERSION "v1.0.7 (8b21766)")
+  set(LFIPC_BOOST_VERSION "1.92.0")
   FetchContent_Declare(readerwriterqueue
     GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git
     GIT_TAG 8b2176698e9bdaba653cdc20c32b54737a934b47  # v1.0.7, released 2025-04-28
@@ -161,7 +164,7 @@ if(LFIPC_BASELINES)
   set(BOOST_INCLUDE_LIBRARIES lockfree)
   set(BOOST_ENABLE_CMAKE ON)
   FetchContent_Declare(boost
-    URL https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-cmake.tar.xz
+    URL https://github.com/boostorg/boost/releases/download/boost-${LFIPC_BOOST_VERSION}/boost-${LFIPC_BOOST_VERSION}-cmake.tar.xz
     URL_HASH SHA256=9bed76128d4e46755dbe818487788c6fceb6f72b378f4daa49b7e1e600d9088d  # released 2026-08-12
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     EXCLUDE_FROM_ALL)
@@ -180,4 +183,11 @@ if(LFIPC_BASELINES)
   add_executable(queues_test tests/queues_test.cpp)
   target_link_libraries(queues_test PRIVATE lfipc lfipc_baselines Threads::Threads)
   add_test(NAME queues_test COMMAND queues_test)
+endif()
+
+if(LFIPC_BASELINES)
+  add_executable(spsc_bench bench/spsc_bench.cpp)
+  target_link_libraries(spsc_bench PRIVATE lfipc lfipc_baselines Threads::Threads)
+  target_compile_definitions(spsc_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results"
+    LFIPC_RWQ_VERSION="${LFIPC_RWQ_VERSION}" LFIPC_BOOST_VERSION="${LFIPC_BOOST_VERSION}")
 endif()
