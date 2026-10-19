@@ -206,3 +206,7 @@ add_test(NAME shm_test COMMAND shm_test)
 add_executable(shm_stress_test tests/shm_stress_test.cpp)
 target_link_libraries(shm_stress_test PRIVATE lfipc Threads::Threads)
 add_test(NAME shm_stress_test COMMAND shm_stress_test)
+
+add_executable(load_xproc_test tests/load_xproc_test.cpp)
+target_link_libraries(load_xproc_test PRIVATE lfipc Threads::Threads)
+add_test(NAME load_xproc_test COMMAND load_xproc_test)

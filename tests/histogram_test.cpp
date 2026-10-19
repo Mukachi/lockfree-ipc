@@ -137,6 +137,18 @@ int main() {
         check(same, "S4 merge equals recording into one");
     }
 
+    // Export and import give back the same histogram (note 008 moves it between processes).
+    {
+        hist a, b;
+        for (int i = 0; i < 100'000; ++i) a.record(rng() >> (64 - 42));
+        std::vector<std::uint64_t> words(hist::state_words);
+        a.export_state(words.data());
+        b.import_state(words.data());
+        bool same = a.count() == b.count() && a.overflow() == b.overflow() && a.min() == b.min() && a.max() == b.max();
+        for (std::size_t i = 0; i < hist::bucket_count; ++i) same = same && a.at(i) == b.at(i);
+        check(same, "export then import reproduces the histogram exactly");
+    }
+
     // S5: the 10-sample rule.
     {
         hist h;

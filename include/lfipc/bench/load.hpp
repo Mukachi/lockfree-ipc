@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 namespace lfipc::bench {
@@ -97,16 +98,20 @@ struct no_return {
     bool try_receive(message&) { return false; }
 };
 
-// The producer sends message i at t0 + i*T, spinning until then, and never
-// skips a late one (S2); the consumer records stamp - intended (S1). With Echo,
-// the consumer also sends each message back on `back`, and the producer, while
-// it waits, receives the echoes and records arrival - intended: a round trip on
-// one CPU's TSC. Histograms are constructed before the threads start, so their
-// pages are mapped.
-template <bool Echo, load_sut Sut, load_sut Back>
-void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
+// Start-up and stop signals between producer and consumer. Lock-free atomics
+// only, standard layout, so it can sit in memory shared between processes
+// (note 008) as well as on a stack.
+struct load_sync {
+    std::atomic<int> ready{0}, failed{0};
+    std::atomic<ticks> t0{0};  // 0 until go; then the schedule's start
+    std::atomic<bool> abort{false};
+};
+static_assert(std::is_standard_layout_v<load_sync> && std::atomic<ticks>::is_always_lock_free);
+
+// Fills r's description of the run; false if the configuration is invalid.
+inline bool prepare_load(const load_config& c, load_result& r, bool echo) {
     r = {};
-    r.has_round_trip = Echo;
+    r.has_round_trip = echo;
     r.rate_per_s = c.rate_per_s;
     r.interval_ticks = c.ticks_per_ns * 1e9 / c.rate_per_s;
     r.messages = c.messages;
@@ -115,89 +120,96 @@ void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
     r.consumer_cpu = c.consumer_cpu;
     if (c.ticks_per_ns <= 0.0 || c.rate_per_s <= 0.0 || c.messages == 0) {
         r.reason = "invalid load configuration";
-        return;
+        return false;
     }
-    const std::size_t warm = r.warmup_discarded;
-    const std::size_t n = warm + c.messages;
+    return true;
+}
 
-    // Filled by the producer (detail::fill_schedule) before it reports ready.
-    std::vector<ticks> offset;
-
-    std::atomic<int> ready{0}, failed{0};
-    std::atomic<ticks> t0{0};  // 0 until go; then the schedule's start
-    std::atomic<bool> abort{false};
-
-    std::thread consumer([&] {
-        if (!detail::pin_to(c.consumer_cpu)) failed.fetch_add(1);
-        ready.fetch_add(1, std::memory_order_release);
-        while (t0.load(std::memory_order_acquire) == 0) detail::cpu_relax();
-        if (abort.load()) return;
-        message m{};
-        for (std::uint64_t expected = 0; expected < n;) {
-            if (!sut.try_receive(m)) {
-                detail::cpu_relax();
-                continue;
-            }
-            const ticks now = stop();
-            if (m.seq != expected) ++r.out_of_order;
-            if (m.seq >= warm) {
-                if (now < m.intended) {
-                    ++r.negative;
-                    r.latency.record(0);
-                } else {
-                    r.latency.record(now - m.intended);
-                }
-            }
-            if constexpr (Echo) {
-                while (!back.send(m)) detail::cpu_relax();
-            }
-            ++expected;
+// The consumer: records stamp - intended for every message (S1) and, with
+// Echo, sends each one back. Inlined, so the thread version's compiled thread
+// body (note 003, S6) is the loop itself, and the process version (note 008)
+// runs the identical code.
+template <bool Echo, load_sut Sut, load_sut Back>
+[[gnu::always_inline]] inline void consumer_loop(Sut& sut, Back& back, load_result& r, std::size_t warm,
+                                                 std::size_t n) {
+    message m{};
+    for (std::uint64_t expected = 0; expected < n;) {
+        if (!sut.try_receive(m)) {
+            detail::cpu_relax();
+            continue;
         }
-    });
-    std::thread producer([&] {
-        if (!detail::pin_to(c.producer_cpu)) failed.fetch_add(1);
-        detail::fill_schedule(offset, n, r.interval_ticks);
-        ready.fetch_add(1, std::memory_order_release);
-        ticks base;
-        while ((base = t0.load(std::memory_order_acquire)) == 0) detail::cpu_relax();
-        if (abort.load()) return;
-        std::uint64_t echoes = 0;
-        // Take one echo if there is one. Called while waiting, so the consumer
-        // is never stuck sending back into a full return path.
-        const auto poll = [&] {
-            message e{};
-            if (!back.try_receive(e)) return false;
-            const ticks now = stop();
-            if (e.seq >= warm) r.round_trip.record(now >= e.intended ? now - e.intended : 0);
-            ++echoes;
-            return true;
-        };
-        for (std::size_t i = 0; i < n; ++i) {
-            const ticks due = base + offset[i];
-            while (start() < due) {
-                if (!Echo || !poll()) detail::cpu_relax();
+        const ticks now = stop();
+        if (m.seq != expected) ++r.out_of_order;
+        if (m.seq >= warm) {
+            if (now < m.intended) {
+                ++r.negative;
+                r.latency.record(0);
+            } else {
+                r.latency.record(now - m.intended);
             }
-            while (!sut.send(message{i, due})) {
-                if (!Echo || !poll()) detail::cpu_relax();
-            }
-            const ticks sent = start();
-            if (i >= warm) r.lateness.record(sent - due);
         }
         if constexpr (Echo) {
-            while (echoes < n) {
-                if (!poll()) detail::cpu_relax();
+            while (!back.send(m)) detail::cpu_relax();
+        }
+        ++expected;
+    }
+}
+
+// The producer sends message i at base + offset[i], spinning until then, and
+// never skips a late one (S2). With Echo, while it waits it takes echoes and
+// records arrival - intended: a round trip on one CPU's TSC. `abort` is read
+// only when a send is refused or no echo is waiting, never on the timed path:
+// it stops a producer whose consumer has gone (a process that died, note 008).
+template <bool Echo, load_sut Sut, load_sut Back>
+[[gnu::always_inline]] inline void producer_loop(Sut& sut, Back& back, load_result& r, load_sync& sync,
+                                                 const std::vector<ticks>& offset, ticks base, std::size_t warm,
+                                                 std::size_t n) {
+    std::uint64_t echoes = 0;
+    // Take one echo if there is one. Called while waiting, so the consumer
+    // is never stuck sending back into a full return path.
+    const auto poll = [&] {
+        message e{};
+        if (!back.try_receive(e)) return false;
+        const ticks now = stop();
+        if (e.seq >= warm) r.round_trip.record(now >= e.intended ? now - e.intended : 0);
+        ++echoes;
+        return true;
+    };
+    for (std::size_t i = 0; i < n; ++i) {
+        const ticks due = base + offset[i];
+        while (start() < due) {
+            if (!Echo || !poll()) detail::cpu_relax();
+        }
+        while (!sut.send(message{i, due})) {
+            if (!Echo || !poll()) {
+                if (sync.abort.load(std::memory_order_relaxed)) return;
+                detail::cpu_relax();
             }
         }
-    });
+        const ticks sent = start();
+        if (i >= warm) r.lateness.record(sent - due);
+    }
+    if constexpr (Echo) {
+        while (echoes < n) {
+            if (!poll()) {
+                if (sync.abort.load(std::memory_order_relaxed)) return;
+                detail::cpu_relax();
+            }
+        }
+    }
+}
 
-    while (ready.load(std::memory_order_acquire) < 2) detail::cpu_relax();
-    if (failed.load()) abort.store(true);
-    // Start 1 ms from now, so both threads are spinning on the schedule first.
-    t0.store(start() + static_cast<ticks>(c.ticks_per_ns * 1e6), std::memory_order_release);
-    producer.join();
-    consumer.join();
+// Waits for both sides, then starts the schedule 1 ms from now, so both are
+// spinning on it first; or aborts if either could not pin.
+inline void start_schedule(load_sync& sync, double ticks_per_ns) {
+    while (sync.ready.load(std::memory_order_acquire) < 2) detail::cpu_relax();
+    if (sync.failed.load()) sync.abort.store(true);
+    sync.t0.store(start() + static_cast<ticks>(ticks_per_ns * 1e6), std::memory_order_release);
+}
 
-    if (failed.load()) {
+// The verdict once both sides are done.
+inline void finish_load(const load_config& c, load_result& r, const load_sync& sync) {
+    if (sync.failed.load()) {
         r.reason = "cannot pin producer CPU " + std::to_string(c.producer_cpu) + " or consumer CPU " +
                    std::to_string(c.consumer_cpu);
         return;
@@ -208,6 +220,39 @@ void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
         return;
     }
     r.ok = true;
+}
+
+// Producer and consumer as two pinned threads. Histograms are constructed
+// before the threads start, so their pages are mapped.
+template <bool Echo, load_sut Sut, load_sut Back>
+void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
+    if (!prepare_load(c, r, Echo)) return;
+    const std::size_t warm = r.warmup_discarded;
+    const std::size_t n = warm + c.messages;
+    std::vector<ticks> offset;  // filled by the producer (fill_schedule) before it reports ready
+    load_sync sync;
+
+    std::thread consumer([&] {
+        if (!detail::pin_to(c.consumer_cpu)) sync.failed.fetch_add(1);
+        sync.ready.fetch_add(1, std::memory_order_release);
+        while (sync.t0.load(std::memory_order_acquire) == 0) detail::cpu_relax();
+        if (sync.abort.load()) return;
+        consumer_loop<Echo>(sut, back, r, warm, n);
+    });
+    std::thread producer([&] {
+        if (!detail::pin_to(c.producer_cpu)) sync.failed.fetch_add(1);
+        detail::fill_schedule(offset, n, r.interval_ticks);
+        sync.ready.fetch_add(1, std::memory_order_release);
+        ticks base;
+        while ((base = sync.t0.load(std::memory_order_acquire)) == 0) detail::cpu_relax();
+        if (sync.abort.load()) return;
+        producer_loop<Echo>(sut, back, r, sync, offset, base, warm, n);
+    });
+
+    start_schedule(sync, c.ticks_per_ns);
+    producer.join();
+    consumer.join();
+    finish_load(c, r, sync);
 }
 
 }  // namespace detail

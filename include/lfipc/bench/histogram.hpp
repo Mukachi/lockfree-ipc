@@ -96,6 +96,24 @@ public:
         return max_;  // the rank falls among the overflow samples
     }
 
+    // The whole state as plain words, to cross a process boundary (note 008):
+    // the counters, then count, overflow, min and max.
+    static constexpr std::size_t state_words = bucket_count + 4;
+    void export_state(std::uint64_t* out) const noexcept {
+        for (std::size_t i = 0; i < bucket_count; ++i) out[i] = counts_[i];
+        out[bucket_count] = count_;
+        out[bucket_count + 1] = overflow_;
+        out[bucket_count + 2] = min_;
+        out[bucket_count + 3] = max_;
+    }
+    void import_state(const std::uint64_t* in) noexcept {
+        for (std::size_t i = 0; i < bucket_count; ++i) counts_[i] = in[i];
+        count_ = in[bucket_count];
+        overflow_ = in[bucket_count + 1];
+        min_ = in[bucket_count + 2];
+        max_ = in[bucket_count + 3];
+    }
+
     // Calls f(upper_edge, count) for every non-empty bucket, in order.
     template <typename F>
     void for_each_bucket(F&& f) const {
