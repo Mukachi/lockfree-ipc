@@ -9,6 +9,7 @@
 #include <lfipc/bench/histogram.hpp>
 #include <lfipc/bench/load.hpp>
 #include <lfipc/bench/noise.hpp>
+#include <lfipc/shm.hpp>
 #include <lfipc/spsc.hpp>
 
 #include "test_suts.hpp"
@@ -40,6 +41,15 @@ LFIPC_SPSC_SUBJECT(v1)
 LFIPC_SPSC_SUBJECT(v2)
 LFIPC_SPSC_SUBJECT(v3)
 
+// Note 008, S5: the ring reached through a shared-memory segment.
+using shm_subject = lfipc::shm_spsc<lfipc::bench::message, 1024>;
+extern "C" [[gnu::noinline]] bool lfipc_spsc_shm_push(shm_subject& s, const lfipc::bench::message& m) {
+    return s.ring().try_push(m);
+}
+extern "C" [[gnu::noinline]] bool lfipc_spsc_shm_pop(shm_subject& s, lfipc::bench::message& m) {
+    return s.ring().try_pop(m);
+}
+
 int main(int argc, char** argv) {
     const std::size_t n = argc > 1 ? std::strtoul(argv[1], nullptr, 10) : 1000;
     {
@@ -66,6 +76,9 @@ int main(int argc, char** argv) {
         if (!lfipc_spsc_v1_push(*q1, m) || !lfipc_spsc_v1_pop(*q1, m)) return 1;
         if (!lfipc_spsc_v2_push(*q2, m) || !lfipc_spsc_v2_pop(*q2, m)) return 1;
         if (!lfipc_spsc_v3_push(*q3, m) || !lfipc_spsc_v3_pop(*q3, m)) return 1;
+        std::string err;
+        auto s = shm_subject::create("/lfipc-hot-path-" + std::to_string(::getpid()), 7, err);
+        if (!s || !lfipc_spsc_shm_push(*s, m) || !lfipc_spsc_shm_pop(*s, m)) return 1;
     }
     lfipc::bench::histogram<> h;
     lfipc_hist_record(h, n);
