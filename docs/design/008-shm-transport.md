@@ -1,6 +1,6 @@
 # 008 — Shared-memory transport
 
-**Status:** Draft · **Updated:** 2026-10-19
+**Status:** Agreed · **Updated:** 2026-10-19
 
 ## Proposal
 
@@ -102,3 +102,4 @@ correctness rests on the stress test and on ARM (CI, to come), not on TSan.
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-19 | Draft | Written for review |
+| 2026-10-19 | Agreed | Approved by Shep: named segments (`shm_open`), layout validation in the header, stale-segment replacement only when the creator is gone, fork-based cross-process measurement published beside v3's thread results |
