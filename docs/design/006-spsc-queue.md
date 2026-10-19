@@ -85,7 +85,7 @@ today). Each is wrapped in the load generator's `send`/`try_receive` interface, 
 ## Tasks
 
 - [x] `include/lfipc/spsc.hpp`: v1, with S1–S4 tests
-- [ ] v2 (cached counters) and v3 (128-byte separation), same tests
+- [x] v2 (cached counters) and v3 (128-byte separation), same tests
 - [ ] Baselines fetched and wrapped
 - [ ] `bench/spsc_bench`: every queue × pair × rate
 - [ ] Reviewed run under bench-on; the choice of final variant recorded here
@@ -97,3 +97,4 @@ today). Each is wrapped in the load generator's `send`/`try_receive` interface, 
 | 2026-10-19 | Draft | Written for review |
 | 2026-10-19 | Agreed | Approved by Shep: measured variants v1–v3, in-process now with a shared-memory-ready layout, moodycamel and Boost.Lockfree baselines, pairs 2→3 and 2→46, rates 100k–10M/s, 16-byte messages. Noted for later: `run.py report --check` does not exist yet and is needed before README numbers |
 | 2026-10-19 | Built (partial) | v1 (`spsc_ring<T, N, 64>`): tail at offset 0, head at 64, slots at 128. Tests: empty, full at exactly capacity, FIFO, 100 rounds at every fill level; S2 across the 2^64 counter wrap; S1 20M messages across two threads, 8- and 64-byte (the 64-byte one detects torn reads), 1M under TSan and ASan; S4 standard layout. Mutants: a full check off by one fails every test; `tail` stored relaxed is a TSan data race on the slot read (natively undetectable on x86, which keeps stores in order); `tail` stored seq_cst fails S3 (`xchg`). S3 in the compiled code: `try_push` is 13 instructions, plain moves only; the parser now keeps `lock` prefixes visible. ARM build: release/acquire become `stlr`/`ldar` |
+| 2026-10-19 | Built (partial) | v2 and v3: a `Cached` template parameter; each side's copy of the other's counter sits on its own counter's line. Same tests, all pass (20M messages each, 1M under TSan and ASan). v3 places head at 128 bytes and slots at 256. S3 refined: `xchg` counts only with a memory operand; `xchg %ax,%ax` is the assembler's 2-byte padding nop (found after a `ret` in v3 `try_pop`). The seq_cst mutant is still caught in all three |

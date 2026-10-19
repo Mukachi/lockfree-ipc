@@ -27,13 +27,18 @@ extern "C" [[gnu::noinline]] void lfipc_hist_record(lfipc::bench::histogram<>& h
     h.record(v);
 }
 
-using spsc_v1_subject = lfipc::spsc_v1<lfipc::bench::message, 1024>;
-extern "C" [[gnu::noinline]] bool lfipc_spsc_v1_push(spsc_v1_subject& q, const lfipc::bench::message& m) {
-    return q.try_push(m);
-}
-extern "C" [[gnu::noinline]] bool lfipc_spsc_v1_pop(spsc_v1_subject& q, lfipc::bench::message& m) {
-    return q.try_pop(m);
-}
+#define LFIPC_SPSC_SUBJECT(V)                                                                         \
+    using spsc_##V##_subject = lfipc::spsc_##V<lfipc::bench::message, 1024>;                           \
+    extern "C" [[gnu::noinline]] bool lfipc_spsc_##V##_push(spsc_##V##_subject& q,                     \
+                                                           const lfipc::bench::message& m) {           \
+        return q.try_push(m);                                                                          \
+    }                                                                                                  \
+    extern "C" [[gnu::noinline]] bool lfipc_spsc_##V##_pop(spsc_##V##_subject& q, lfipc::bench::message& m) { \
+        return q.try_pop(m);                                                                           \
+    }
+LFIPC_SPSC_SUBJECT(v1)
+LFIPC_SPSC_SUBJECT(v2)
+LFIPC_SPSC_SUBJECT(v3)
 
 int main(int argc, char** argv) {
     const std::size_t n = argc > 1 ? std::strtoul(argv[1], nullptr, 10) : 1000;
@@ -54,9 +59,13 @@ int main(int argc, char** argv) {
         lfipc::bench::measure_noise(0, 0.01, 2.2, *nr);
     }
     {
-        auto q = std::make_unique<spsc_v1_subject>();
         lfipc::bench::message m{1, 2};
-        if (!lfipc_spsc_v1_push(*q, m) || !lfipc_spsc_v1_pop(*q, m)) return 1;
+        auto q1 = std::make_unique<spsc_v1_subject>();
+        auto q2 = std::make_unique<spsc_v2_subject>();
+        auto q3 = std::make_unique<spsc_v3_subject>();
+        if (!lfipc_spsc_v1_push(*q1, m) || !lfipc_spsc_v1_pop(*q1, m)) return 1;
+        if (!lfipc_spsc_v2_push(*q2, m) || !lfipc_spsc_v2_pop(*q2, m)) return 1;
+        if (!lfipc_spsc_v3_push(*q3, m) || !lfipc_spsc_v3_pop(*q3, m)) return 1;
     }
     lfipc::bench::histogram<> h;
     lfipc_hist_record(h, n);

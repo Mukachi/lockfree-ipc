@@ -136,6 +136,8 @@ void all(const char* name) {
 
 int main() {
     all<lfipc::spsc_v1>("v1");
+    all<lfipc::spsc_v2>("v2");
+    all<lfipc::spsc_v3>("v3");
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
 }

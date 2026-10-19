@@ -16,8 +16,8 @@ Noise S5 (note 005): the spinner's loop, spin_window with the default hook,
 contains no call at all: the stop recording and histogram are inlined.
 
 SPSC S3 (note 006): try_push and try_pop make no call and contain no locked
-instruction, fence or xchg (an implicit lock): on x86, release and acquire
-are plain moves.
+instruction, fence, or xchg with a memory operand (an implicit lock): on
+x86, release and acquire are plain moves.
 
 S6: in the overhead loop, every window from a start() read (rdtsc) to the
 next stop() read (rdtscp) holds only fences and register moves: no call,
@@ -149,12 +149,16 @@ for n, ins in spin.items():
           "noise S5 spinner loop: TSC reads and no calls" + (f": found {targets}" if targets else ""))
 
 # SPSC S3
-FORBIDDEN = {"lock", "mfence", "lfence", "sfence", "xchg"}
+FORBIDDEN = {"lock", "mfence", "lfence", "sfence"}  # plus xchg with a memory operand (implicit lock)
 ops = {n: ins for n, ins in funcs.items() if n.startswith("lfipc_spsc_")}
-check(len(ops) >= 2, f"SPSC push and pop subjects found ({len(ops)})")
+check(len(ops) >= 6, f"SPSC push and pop subjects found, v1-v3 ({len(ops)})")
 for n, ins in sorted(ops.items()):
     calls = sorted({o for m, o in ins if m == "call" or (m == "jmp" and "@plt" in o)})
-    bad = sorted({m for m, _ in ins if m.rstrip("bwlq") in FORBIDDEN or m in FORBIDDEN})
+    # xchg locks only with a memory operand; `xchg %ax,%ax` is the 2-byte nop
+    # the assembler pads with.
+    bad = sorted({m for m, o in ins
+                  if m in FORBIDDEN or m.rstrip("bwlq") in FORBIDDEN
+                  or (m.rstrip("bwlq") == "xchg" and "(" in o)})
     check(not calls and not bad, f"SPSC S3 {n}: no call, lock, fence or xchg"
           + (f": found {calls + bad}" if calls or bad else ""))
 
