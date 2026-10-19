@@ -13,7 +13,7 @@ SUB = {
     "bench_mode": {"ok", "failed"},
     "machine": {"vendor", "product", "bios", "bios_date"},
     "cpu": {"model", "microcode", "sockets", "cores_per_socket", "threads_per_core", "online"},
-    "kernel": {"release", "version", "cmdline", "thp", "vulnerabilities"},
+    "kernel": {"release", "version", "cmdline", "thp", "numa_balancing", "vulnerabilities"},
     "power": {"governor", "turbo", "idle_states_enabled", "uncore_khz"},
     "placement": {"fence", "reserved", "cgroup", "affinity"},
     "build": {"commit", "clean", "compiler", "build_type", "flags"},

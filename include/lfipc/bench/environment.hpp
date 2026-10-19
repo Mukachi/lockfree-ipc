@@ -76,7 +76,7 @@ struct environment {
     // NUMA
     std::vector<numa_node> numa;
     // Kernel
-    opt_str release, version, cmdline, thp;
+    opt_str release, version, cmdline, thp, numa_balancing;
     std::map<std::string, std::string> vulnerabilities;
     // Placement: fence is the housekeeping set; reserved is online minus fence.
     opt_str fence_system, fence_user, cgroup, affinity;
@@ -192,6 +192,7 @@ inline environment capture_environment(const env_reader& rd, int argc = 0, char*
     e.version = rd.read("/proc/sys/kernel/version");
     e.cmdline = rd.read("/proc/cmdline");
     e.thp = detail::bracketed(rd.read("/sys/kernel/mm/transparent_hugepage/enabled"));
+    e.numa_balancing = rd.read("/proc/sys/kernel/numa_balancing");
     const std::string vul = "/sys/devices/system/cpu/vulnerabilities/";
     for (const auto& v : rd.list(vul))
         if (const auto s = rd.read(vul + v)) e.vulnerabilities[v] = *s;
@@ -284,6 +285,10 @@ inline std::vector<std::string> bench_mode_failures(const environment& e) {
         if (!std::all_of(e.reserved.begin(), e.reserved.end(), [&](int c) { return as.count(c) > 0; }))
             f.push_back("affinity " + *e.affinity + " does not cover the reserved CPUs");
     }
+    // Automatic NUMA balancing stops a thread for ~0.6 ms at a time to scan its
+    // memory (note 005); bench-on turns it off.
+    if (e.numa_balancing != "0")
+        f.push_back("automatic NUMA balancing is '" + e.numa_balancing.value_or("unknown") + "', not off");
     if (!e.clean) f.push_back("built from a tree with uncommitted changes to tracked files");
     return f;
 }
@@ -358,6 +363,7 @@ inline void write_environment_block(json_writer& w, const environment& e, bool p
     w.member("version", e.version);
     w.member("cmdline", e.cmdline);
     w.member("thp", e.thp);
+    w.member("numa_balancing", e.numa_balancing);
     w.key("vulnerabilities");
     w.begin_object();
     for (const auto& [k, v] : e.vulnerabilities) w.member(k, v);

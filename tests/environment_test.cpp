@@ -51,6 +51,7 @@ void good_tree() {
     put("/proc/sys/kernel/version", "#38-Ubuntu SMP");
     put("/proc/cmdline", "ro quiet");
     put("/sys/kernel/mm/transparent_hugepage/enabled", "always [madvise] never");
+    put("/proc/sys/kernel/numa_balancing", "0");
     put("/sys/devices/system/cpu/vulnerabilities/spectre_v2", "Mitigation: Retpolines");
     put("/sys/devices/system/cpu/vulnerabilities/meltdown", "Not affected");
     put("/sys/fs/cgroup/system.slice/cpuset.cpus", "0-1,4-5");
@@ -99,7 +100,7 @@ int main(int argc, char** argv) {
           "cpu fields, sockets counted from physical ids");
     check(e.numa.size() == 2 && e.numa[0].cpus == "0-3" && e.numa[0].memory_mb == 2048 && e.numa[1].memory_mb == 1024,
           "numa nodes, memory in MB, non-node entries skipped");
-    check(e.release == "7.0.0-38-generic" && e.thp == "madvise" && e.vulnerabilities.size() == 2 &&
+    check(e.release == "7.0.0-38-generic" && e.thp == "madvise" && e.numa_balancing == "0" && e.vulnerabilities.size() == 2 &&
               e.vulnerabilities.at("spectre_v2") == "Mitigation: Retpolines",
           "kernel fields, THP selection, vulnerabilities");
     check(e.governor == "performance" && e.turbo == true &&
@@ -130,6 +131,12 @@ int main(int argc, char** argv) {
         const auto f = failures_now();
         check(!f.empty() && f[0].find("fence not in place") != std::string::npos, "S3 no fence");
     }
+    good_tree();
+    put("/proc/sys/kernel/numa_balancing", "1");
+    check(only(failures_now(), "automatic NUMA balancing is '1'"), "S3 NUMA balancing on");
+    good_tree();
+    fs::remove(root + "/proc/sys/kernel/numa_balancing");
+    check(only(failures_now(), "automatic NUMA balancing is 'unknown'"), "S3 NUMA balancing unreadable");
     good_tree();
     put("/proc/self/cgroup", "0::/user.slice/user-1000.slice/session-13.scope");
     check(only(failures_now(), "not started by bench-run"), "S3 not started by bench-run");
