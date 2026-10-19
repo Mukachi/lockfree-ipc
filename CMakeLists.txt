@@ -148,3 +148,36 @@ target_compile_definitions(noise_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE
 add_executable(spsc_test tests/spsc_test.cpp)
 target_link_libraries(spsc_test PRIVATE lfipc Threads::Threads)
 add_test(NAME spsc_test COMMAND spsc_test)
+
+# Baselines for note 006, fetched into build/_deps and pinned by commit and
+# checksum. Third-party code stays out of the source tree.
+option(LFIPC_BASELINES "Fetch and build the baseline queues" ON)
+if(LFIPC_BASELINES)
+  include(FetchContent)
+  FetchContent_Declare(readerwriterqueue
+    GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git
+    GIT_TAG 8b2176698e9bdaba653cdc20c32b54737a934b47  # v1.0.7, released 2025-04-28
+    GIT_SHALLOW FALSE)
+  set(BOOST_INCLUDE_LIBRARIES lockfree)
+  set(BOOST_ENABLE_CMAKE ON)
+  FetchContent_Declare(boost
+    URL https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-cmake.tar.xz
+    URL_HASH SHA256=9bed76128d4e46755dbe818487788c6fceb6f72b378f4daa49b7e1e600d9088d  # released 2026-08-12
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    EXCLUDE_FROM_ALL)
+  FetchContent_MakeAvailable(readerwriterqueue boost)
+endif()
+
+if(LFIPC_BASELINES)
+  # Third-party headers are system headers here, so our warnings-as-errors
+  # apply to our code only.
+  add_library(lfipc_baselines INTERFACE)
+  get_target_property(rwq_inc readerwriterqueue INTERFACE_INCLUDE_DIRECTORIES)
+  target_include_directories(lfipc_baselines SYSTEM INTERFACE ${rwq_inc})
+  target_link_libraries(lfipc_baselines INTERFACE Boost::lockfree)
+  set_target_properties(lfipc_baselines PROPERTIES SYSTEM ON)
+
+  add_executable(queues_test tests/queues_test.cpp)
+  target_link_libraries(queues_test PRIVATE lfipc lfipc_baselines Threads::Threads)
+  add_test(NAME queues_test COMMAND queues_test)
+endif()
