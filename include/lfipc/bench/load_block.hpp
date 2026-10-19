@@ -16,12 +16,18 @@ namespace lfipc::bench {
 // producer/consumer CPU pair measured with note 001's method: the one-way
 // figures are published beside its offset bound (S7). A refused rate keeps its
 // reason and the lateness histogram that refused it, and no latency results.
+//
+// One mode per block (note 003, amended): runs without echo publish one-way
+// latency only; runs with echo publish round trip only. An echo run's one-way
+// figure is not written: the echo traffic inflates it (note 006, Review).
 inline void write_load_block(json_writer& w, std::string_view sut, const cross_cpu_pair& pair,
                              const std::vector<std::unique_ptr<load_result>>& runs, double ticks_per_ns,
                              std::string_view key = "load") {
     const auto ns = [ticks_per_ns](double t) { return t / ticks_per_ns; };
+    const bool round_trip = !runs.empty() && runs.front()->has_round_trip;
     w.key(key);
     w.begin_object();
+    w.member("mode", round_trip ? "round_trip" : "one_way");
     w.member("sut", sut);
     w.member("producer_cpu", pair.a);
     w.member("consumer_cpu", pair.b);
@@ -48,8 +54,8 @@ inline void write_load_block(json_writer& w, std::string_view sut, const cross_c
         if (r->ok) {
             w.member("out_of_order", r->out_of_order);
             w.member("negative", r->negative);
-            write_histogram_block(w, r->latency, ticks_per_ns, "one_way");
             if (r->has_round_trip) write_histogram_block(w, r->round_trip, ticks_per_ns, "round_trip");
+            else write_histogram_block(w, r->latency, ticks_per_ns, "one_way");
         }
         w.end_object();
     }

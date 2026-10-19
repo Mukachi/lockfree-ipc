@@ -1,7 +1,7 @@
 // Tests for include/lfipc/bench/load_block.hpp. Spec: docs/design/003-open-loop-load.md
 //
-// Writes load_block.json from synthetic runs, one published and one refused,
-// for check_load_json.py, so both kinds of rate are checked.
+// Writes load_block.json: a one-way and a round-trip block from synthetic runs,
+// each with a published and a refused rate, for check_load_json.py.
 #include <lfipc/bench/load_block.hpp>
 
 #include <cstdio>
@@ -23,34 +23,38 @@ int main() {
     pair.round_trips = 100'000;
     pair.converged = true;
 
-    std::vector<std::unique_ptr<load_result>> runs;
-    auto good = std::make_unique<load_result>();
-    good->ok = true;
-    good->rate_per_s = 1e5;
-    good->interval_ticks = 20'000;
-    good->messages = 20'000;
-    good->warmup_discarded = 10'000;
-    good->has_round_trip = true;
-    for (int i = 0; i < 20'000; ++i) {
-        good->lateness.record(100 + i % 7);
-        good->latency.record(400 + i % 50);
-        good->round_trip.record(800 + i % 90);
-    }
-    runs.push_back(std::move(good));
-
-    auto bad = std::make_unique<load_result>();
-    bad->rate_per_s = 1e6;
-    bad->interval_ticks = 2'000;
-    bad->messages = 20'000;
-    bad->warmup_discarded = 100'000;
-    bad->has_round_trip = true;
-    bad->reason = "producer lateness p99 5000 ns exceeds the send interval 1000 ns";
-    for (int i = 0; i < 20'000; ++i) bad->lateness.record(i % 50 ? 100 : 10'000);
-    runs.push_back(std::move(bad));
+    // One block per mode (note 003, amended), each with a published and a refused rate.
+    const auto make_runs = [](bool echo) {
+        std::vector<std::unique_ptr<load_result>> runs;
+        auto good = std::make_unique<load_result>();
+        good->ok = true;
+        good->rate_per_s = 1e5;
+        good->interval_ticks = 20'000;
+        good->messages = 20'000;
+        good->warmup_discarded = 10'000;
+        good->has_round_trip = echo;
+        for (int i = 0; i < 20'000; ++i) {
+            good->lateness.record(100 + i % 7);
+            good->latency.record(400 + i % 50);
+            if (echo) good->round_trip.record(800 + i % 90);
+        }
+        runs.push_back(std::move(good));
+        auto bad = std::make_unique<load_result>();
+        bad->rate_per_s = 1e6;
+        bad->interval_ticks = 2'000;
+        bad->messages = 20'000;
+        bad->warmup_discarded = 100'000;
+        bad->has_round_trip = echo;
+        bad->reason = "producer lateness p99 5000 ns exceeds the send interval 1000 ns";
+        for (int i = 0; i < 20'000; ++i) bad->lateness.record(i % 50 ? 100 : 10'000);
+        runs.push_back(std::move(bad));
+        return runs;
+    };
 
     json_writer w;
     w.begin_object();
-    write_load_block(w, "synthetic", pair, runs, 2.0);
+    write_load_block(w, "synthetic", pair, make_runs(false), 2.0, "one_way");
+    write_load_block(w, "synthetic", pair, make_runs(true), 2.0, "round_trip");
     w.end_object();
     std::ofstream("load_block.json") << w.str() << '\n';
 

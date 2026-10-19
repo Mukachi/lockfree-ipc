@@ -5,8 +5,11 @@
 // Usage: spsc_bench [output.json [seconds_per_rate]]
 // Default output: results/spsc-<host>-<UTC time>.json; 10 s per rate.
 // For each pair and rate the five queues run back to back, so queues compared
-// at one rate are measured close together in time. A refused rate is a result
-// (the generator or the queue could not sustain it), not a failure.
+// at one rate are measured close together in time. Each queue runs each rate
+// twice: one-way only (its one-way figures) and with echo (its round trip),
+// since echo traffic inflates the one-way figure (note 003, amended). A refused
+// rate is a result (the generator or the queue could not sustain it), not a
+// failure.
 // Exit status: 0 published, 1 refused (bench mode or clock; reason in the JSON),
 // 2 cannot write.
 #include "queues.hpp"
@@ -25,12 +28,13 @@ namespace {
 
 using namespace lfipc::bench;
 
-using runner = void (*)(const load_config&, load_result&);
+using runner = void (*)(const load_config&, load_result&, bool echo);
 
-// Fresh queues for every run: one each way.
+// Fresh queues for every run: the forward queue, and a return one for echo runs.
 template <typename Sut>
-void run_queue(const load_config& c, load_result& r) {
+void run_queue(const load_config& c, load_result& r, bool echo) {
     auto out = std::make_unique<Sut>();
+    if (!echo) return run_load(*out, c, r);
     auto back = std::make_unique<Sut>();
     run_load(*out, *back, c, r);
 }
@@ -73,26 +77,32 @@ int main(int argc, char** argv) {
         return run.finish(false, "spsc_bench");
     }
 
-    // results[pair][queue] holds one load_result per rate, in rate order.
+    // results[mode][pair][queue] holds one load_result per rate, in rate order;
+    // mode 0 is one-way only, mode 1 with echo.
     std::vector<cross_cpu_pair> bounds;
-    std::vector<std::vector<std::vector<std::unique_ptr<load_result>>>> results(std::size(pairs));
+    std::vector<std::vector<std::vector<std::unique_ptr<load_result>>>> results[2];
+    results[0].resize(std::size(pairs));
+    results[1].resize(std::size(pairs));
     for (std::size_t p = 0; p < std::size(pairs); ++p) {
         bounds.push_back(measure_pair(pairs[p].producer, pairs[p].consumer));
-        results[p].resize(queue_count);
+        results[0][p].resize(queue_count);
+        results[1][p].resize(queue_count);
         for (const double rate : rates) {
             for (std::size_t q = 0; q < queue_count; ++q) {
-                load_config c;
-                c.rate_per_s = rate;
-                c.messages = static_cast<std::size_t>(rate * seconds_per_rate);
-                c.producer_cpu = pairs[p].producer;
-                c.consumer_cpu = pairs[p].consumer;
-                c.ticks_per_ns = clk.cal.ticks_per_ns;
-                auto r = std::make_unique<load_result>();
-                queues[q].run(c, *r);
-                std::printf("cpus %d->%-2d %9.0f/s %-10s %s\n", pairs[p].producer, pairs[p].consumer, rate,
-                            queues[q].name, r->ok ? "ok" : r->reason.c_str());
-                std::fflush(stdout);
-                results[p][q].push_back(std::move(r));
+                for (int mode = 0; mode < 2; ++mode) {
+                    load_config c;
+                    c.rate_per_s = rate;
+                    c.messages = static_cast<std::size_t>(rate * seconds_per_rate);
+                    c.producer_cpu = pairs[p].producer;
+                    c.consumer_cpu = pairs[p].consumer;
+                    c.ticks_per_ns = clk.cal.ticks_per_ns;
+                    auto r = std::make_unique<load_result>();
+                    queues[q].run(c, *r, mode == 1);
+                    std::printf("cpus %d->%-2d %9.0f/s %-10s %-10s %s\n", pairs[p].producer, pairs[p].consumer, rate,
+                                queues[q].name, mode ? "round trip" : "one-way", r->ok ? "ok" : r->reason.c_str());
+                    std::fflush(stdout);
+                    results[mode][p][q].push_back(std::move(r));
+                }
             }
         }
     }
@@ -117,8 +127,13 @@ int main(int argc, char** argv) {
         run.w.member("consumer_cpu", pairs[p].consumer);
         run.w.key("queues");
         run.w.begin_object();
-        for (std::size_t q = 0; q < queue_count; ++q)
-            write_load_block(run.w, queues[q].sut, bounds[p], results[p][q], clk.cal.ticks_per_ns, queues[q].name);
+        for (std::size_t q = 0; q < queue_count; ++q) {
+            run.w.key(queues[q].name);
+            run.w.begin_object();
+            write_load_block(run.w, queues[q].sut, bounds[p], results[0][p][q], clk.cal.ticks_per_ns, "one_way");
+            write_load_block(run.w, queues[q].sut, bounds[p], results[1][p][q], clk.cal.ticks_per_ns, "round_trip");
+            run.w.end_object();
+        }
         run.w.end_object();
         run.w.end_object();
     }

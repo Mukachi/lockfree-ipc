@@ -42,7 +42,9 @@ firmware, and the kernel checks it at boot, but our own evidence does not go bel
 | B. Round trip only | the consumer echoes each message back on a second SUT instance; producer stamp − intended send time | one CPU's TSC, no sync assumption | measures two hops; halving it assumes symmetry |
 | **C. Both** | one-way and round trip, published side by side | one-way's offset bound stated next to it | two queues per run |
 
-Chosen: **C**. The round trip is the number that needs no clock assumption; the one-way is the
+Chosen: **C**, amended 2026-10-19: both are published, but from **separate runs** at each rate,
+one-way only and with echo. In the same run, the echo traffic slowed the one-way path by ~20–50 ns
+at p50 (note 006, Review); each block now carries one `mode`. The round trip is the number that needs no clock assumption; the one-way is the
 number readers expect, published with note 001's bound for that CPU pair beside it.
 
 **Schedule.** Intended send times are `t_i = t_0 + i·T` in ticks, for an offered rate of 1/T.
@@ -114,3 +116,4 @@ directly with note 001's method.
 | 2026-10-19 | Measured | Post-BIOS baseline, before boot isolation: `results/load-dev-lnx01-20261019T102427Z.json` (commit 1490985, clean, all conditions met). One-way p50 199 ns, p99 213 ns, p99.9 ≈ 4.1 µs at 100k–1M/s (was 163–188 µs); p99.99 6.5 µs at 100k/s, 77–181 µs at 250–500k/s, 1.9 ms at 1M/s; max 0.5–2.7 ms. 1M/s now publishes. Round trip p99 428–473 ns at 100–500k/s (was 1.15–1.57 µs): the open round-trip p99 item was the SMIs. p50 down 24 ns (223 → 199), cause unverified. p99.9 is now the tick; the rare long stops (≈ 0.1/s, up to ~2.6 ms here) remain, cause unknown |
 | 2026-10-19 | Measured | With SMIs off and boot isolation: `results/load-dev-lnx01-20261019T113214Z.json`. One-way p50 214–222 ns, p99 234–253, p99.9 237 / 238 / 255 ns at 100k / 250k / 500k/s and 1.4 µs at 1M/s; p99.99 403 ns at 100k/s, 96 µs–2.2 ms above. The tail up to p99.9 is now the SUT, not the machine. Note 005 has the floor and the open items |
 | 2026-10-19 | Measured | Final, SMIs off, boot isolation, NUMA balancing off: `results/load-dev-lnx01-20261019T124603Z.json`. One-way p50 216–225 ns, p99 238–278, p99.9 241–283, p99.99 243–286, p99.999 255–357 ns; max 0.43–0.45 µs at 100k–500k/s, 1.07 µs at 1M/s. Round trip p99.9 467–539 ns (2.1–2.4 µs before: the open round-trip item was NUMA balancing). The whole distribution is now the SUT; the run's own noise samples recorded zero stops |
+| 2026-10-19 | Measured | Amended with Shep: one-way and round trip measured in separate runs at each rate (note 006 found the echo inflates the one-way figure by ~20–50 ns at p50, up to ~100 at p99). `write_load_block` writes one mode per block, with a `mode` field; an echo run's one-way figure is never written. `load_bench` and `spsc_bench` run each rate twice. Earlier result files keep their combined runs; their round trips stand, their one-way figures were measured with echo on |

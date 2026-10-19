@@ -90,8 +90,9 @@ today). Each is wrapped in the load generator's `send`/`try_receive` interface, 
 - [x] Baselines fetched and wrapped
 - [x] `bench/spsc_bench`: every queue × pair × rate
 - [x] Reviewed run under bench-on; the choice of final variant recorded here
-- [ ] Turbo: measure its effect on run-to-run p50 before any decision
-- [ ] Generator cost cross-core (~200 ns per message caps 2→3 at ~5M/s): measure before any decision
+- [x] Turbo: measure its effect on run-to-run p50 before any decision
+- [x] Generator cost cross-core (~200 ns per message caps 2→3 at ~5M/s): measure before any decision
+- [ ] Three bench-on runs with one-way and round trip measured separately; publish ranges
 
 ## Review
 
@@ -108,3 +109,4 @@ today). Each is wrapped in the load generator's `send`/`try_receive` interface, 
 | 2026-10-19 | Measured | Decided with Shep: v3 is the final queue; `spsc_ring<T, N>`'s defaults are v3's (a static_assert keeps them equal); v1 and v2 stay, named and measured. Spec: S1–S4 by tests and the compiled code, S5 by three bench-on runs, S6 by the aarch64 build. Two follow-ups agreed, measure before deciding: turbo's effect on run-to-run p50 (runs differed by 30–40 ns), and the generator's ~200 ns per message cross-core, which caps the measurable rate on 2→3 at ~5M/s |
 | 2026-10-19 | Measured | Generator cost (scratch experiment, bench-on, v3, 2→3, 2 s per rate): one-way-only runs sustain 8M/s (lateness p99 92 ns turbo on, 80 off), with echo 6M/s; the generator costs ~125 ns per message cross-core, and the echo pick-up about a quarter of its capacity. The 5M/s refusals in spsc_bench were the echo mode at the margin over 10 s. Unexpected: the echo inflates the one-way figures themselves. Turbo on, one-way p50 158–167 ns one-way-only against 177–216 with echo; p99 189–209 against 204–306. Note 006's one-way numbers (measured with echo, per note 003's option C) overstate one-way latency by ~20–50 ns at p50 and up to ~100 at p99; the round trip is unaffected. Decision for Shep pending |
 | 2026-10-19 | Measured | Turbo off (`results/spsc-dev-lnx01-20261019T154134Z.json`, `...155312Z.json`, commit c0c3f48, clean, `turbo: false`): everything slower, one-way p50 +30–50 ns cross-core and ~+15 ns on siblings, tails +30–50 ns. Run-to-run p50 spread cross-core: median 27 ns turbo on (3 runs) against 14 off (2 runs), but the largest spread is 53 on against 62 off: turbo is not the cause of the shifts, which remain unexplained. v3's choice holds turbo off (p99.9 at 2M/s 278–291 against v2 404–486). Recommendation to Shep: keep turbo on; publish queue figures from at least three runs, as ranges. A first turbo-off attempt refused correctly: the binary was built before the v3 commit and recorded a dirty tree |
+| 2026-10-19 | Measured | Decided with Shep: turbo stays on (off costs 30–50 ns and does not remove run-to-run shifts); queue figures are published from at least three runs, as ranges; one-way and round trip are measured in separate runs (note 003 amended). `spsc_bench` now runs each queue at each rate twice, back to back; each queue's entry holds a `one_way` and a `round_trip` block. Runtime ~20 min per run. The five earlier result files stand as recorded: their round trips are valid, their one-way figures were measured with echo on |
