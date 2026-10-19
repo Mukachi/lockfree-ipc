@@ -87,13 +87,15 @@ int main() {
         const auto d = counter_delta({{"LOC", 10}, {"RES", 5}}, {{"LOC", 1010}, {"RES", 5}, {"TLB", 2}});
         check(d.size() == 2 && d.at("LOC") == 1000 && d.at("TLB") == 2, "delta keeps only the types that moved");
 
-        measure_noise(2, 0.5, tpn, *r);
+        // CPU 0: the boot CPU always ticks (it cannot be nohz_full), so the
+        // counter wiring is testable there on any kernel configuration.
+        measure_noise(0, 0.5, tpn, *r);
         const auto loc = r->interrupts.count("LOC") ? r->interrupts.at("LOC") : 0;
-        std::printf("info  cpu 2, 0.5 s: %llu stops; LOC %llu; interrupt types %zu, softirq types %zu, "
+        std::printf("info  cpu 0, 0.5 s: %llu stops; LOC %llu; interrupt types %zu, softirq types %zu, "
                     "involuntary switches %ld\n",
                     (unsigned long long)r->stops, (unsigned long long)loc, r->interrupts.size(), r->softirqs.size(),
                     r->involuntary_switches);
-        check(r->ok && loc > 0, "live: local timer interrupts counted on the spinning CPU");
+        check(r->ok && loc > 0, "live: local timer interrupts counted on the spinning CPU (CPU 0)");
     }
 
     measure_noise(-1, 0.1, tpn, *r);
