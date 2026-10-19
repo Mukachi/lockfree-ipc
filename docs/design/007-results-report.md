@@ -1,6 +1,6 @@
 # 007 — Results report
 
-**Status:** Draft · **Updated:** 2026-10-19
+**Status:** Agreed · **Updated:** 2026-10-19
 
 ## Proposal
 
@@ -44,7 +44,8 @@ One table per component: `noise`, `clock`, `histogram`, `load`, `spsc`, each wit
 belongs to and its runs.
 
 **Validation, before any number is read.** Every listed file must: parse; pass the existing
-checkers (`check_environment_json.py` and the component's own); be published (`published: true,
+environment checker (`check_environment_json.py`) and `run.py`'s own check of the component's
+blocks (the per-component test checkers were written for fixture shapes, not run files); be published (`published: true,
 ok: true`); come from a clean build. A set of runs must share one commit, one machine and one
 kernel command line: a range must not mix conditions. Any failure stops the report with the file
 and the reason.
@@ -105,3 +106,4 @@ section differs.
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-19 | Draft | Written for review |
+| 2026-10-19 | Agreed | Approved by Shep: manifest, validation incl. one commit/machine/command line per set, README blocks (v3 against baselines at 1M and 2M/s; noise-floor line), `--check` in CTest. Component validation lives in `run.py`, beside the environment checker |
