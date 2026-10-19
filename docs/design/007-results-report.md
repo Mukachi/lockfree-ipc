@@ -1,6 +1,6 @@
 # 007 — Results report
 
-**Status:** Built · **Updated:** 2026-10-19
+**Status:** Measured · **Updated:** 2026-10-19
 
 ## Proposal
 
@@ -100,7 +100,7 @@ section differs.
 - [x] `run.py report` and `--check`, with S1–S7 tests
 - [x] `RESULTS.md` generated; README blocks added; `--check` passing
 - [x] `--check` added to CTest, so a stale number fails the build's tests
-- [ ] Histogram set: three `histogram_bench` runs under current conditions, then add to the manifest
+- [x] Histogram set: three `histogram_bench` runs under current conditions, then add to the manifest
 
 ## Review
 
@@ -109,3 +109,4 @@ section differs.
 | 2026-10-19 | Draft | Written for review |
 | 2026-10-19 | Agreed | Approved by Shep: manifest, validation incl. one commit/machine/command line per set, README blocks (v3 against baselines at 1M and 2M/s; noise-floor line), `--check` in CTest. Component validation lives in `run.py`, beside the environment checker |
 | 2026-10-19 | Built | `run.py` (standard library only), `results/published.toml`, `RESULTS.md`, README blocks `spsc-summary` and `noise-floor`. Sets: noise (1 run), clock (the 3 SPSC runs' clock blocks: same conditions), load (1), spsc (3). The histogram set waits for runs under current conditions: the old ones predate the `numa_balancing` field and fail today's environment check. Reviewing the first output caught hand-written prose that was wrong ("idle states deeper than C1 off"; the data shows only POLL enabled): conditions are now table columns read from the files, and the prose claims only what validation checks. `tests/run_py_test.py`: 12 checks on a scratch repo of real files, every S1–S6 refusal fires; `report --check` on the repo itself is a CTest test |
+| 2026-10-19 | Measured | Histogram set added (three runs, commit 1a74422); `report --check` passes. Every set in `RESULTS.md` is now measured under the current conditions (SMIs off, boot isolation, NUMA balancing off, turbo on). A first attempt at the histogram runs never reached the machine; adding the old files by mistake was refused by validation (no environment block), as designed. Spec: S1–S7 pass (`run_py_test`, `report_check` in CTest) |

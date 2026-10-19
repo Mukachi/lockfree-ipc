@@ -10,6 +10,7 @@ HP ProLiant DL380 Gen9, BIOS P89 (08/29/2024); 2 × Intel(R) Xeon(R) CPU E5-2699
 |---|---|---|---|---|---|---|---|---|---|
 | noise (note 005) | 1 | 2026-10-19 12:12 UTC | 83526d2 | performance | POLL | on | off | yes | 2-21,46-65 |
 | clock (note 001) | 3 | 2026-10-19 16:37 UTC | bda41f5 | performance | POLL | on | off | yes | 2-21,46-65 |
+| histogram (note 002) | 3 | 2026-10-19 18:41 UTC | 1a74422 | performance | POLL | on | off | yes | 2-21,46-65 |
 | load (note 003) | 1 | 2026-10-19 17:41 UTC | bda41f5 | performance | POLL | on | off | yes | 2-21,46-65 |
 | spsc (note 006) | 3 | 2026-10-19 16:37 UTC | bda41f5 | performance | POLL | on | off | yes | 2-21,46-65 |
 
@@ -36,6 +37,17 @@ Cost of a `start()`/`stop()` pair:
 | 21 | 23 | 24 | 26–27 |
 
 Cross-CPU agreement, CPU 0 against every other CPU (87 pairs per run): no pair proves disagreement; hyper-thread sibling (CPU 44) offset within -23 to 23 ns; unconverged pairs per run 4–12.
+
+## Histogram record cost (note 002)
+
+`start(); record(v); stop()` against bare `start(); stop()` (`none`), unsubtracted; CPU 2, 1,000,000 samples per case, 100,000 warm-up discarded.
+
+| Case | Values | p50 | p99 | p99.9 | max |
+|---|---|---|---|---|---|
+| none | no record: start(); stop() | 21 | 23 | 24 | 26–27 |
+| hot | always 300 ticks | 25 | 27 | 29 | 30–32 |
+| realistic | lognormal, median 900 ticks, sigma 0.3 | 25 | 27 | 38–39 | 82–99 |
+| worst | uniform over 0 to 2^40 ticks | 25 | 29 | 46 | 170–333 |
 
 ## Mailbox load (note 003)
 

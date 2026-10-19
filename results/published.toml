@@ -13,6 +13,12 @@ runs = ["spsc-dev-lnx01-20261019T163730Z.json",
         "spsc-dev-lnx01-20261019T165847Z.json",
         "spsc-dev-lnx01-20261019T172005Z.json"]
 
+[histogram]
+note = "002"
+runs = ["histogram-dev-lnx01-20261019T184118Z.json",
+        "histogram-dev-lnx01-20261019T184125Z.json",
+        "histogram-dev-lnx01-20261019T184133Z.json"]
+
 [load]
 note = "003"
 runs = ["load-dev-lnx01-20261019T174123Z.json"]
