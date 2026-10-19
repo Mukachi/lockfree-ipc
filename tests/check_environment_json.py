@@ -15,7 +15,7 @@ SUB = {
     "cpu": {"model", "microcode", "sockets", "cores_per_socket", "threads_per_core", "online"},
     "kernel": {"release", "version", "cmdline", "thp", "numa_balancing", "vulnerabilities"},
     "power": {"governor", "turbo", "idle_states_enabled", "uncore_khz"},
-    "placement": {"fence", "reserved", "cgroup", "affinity"},
+    "placement": {"fence", "reserved", "cgroup", "affinity", "memory_policy"},
     "build": {"commit", "clean", "compiler", "build_type", "flags"},
     "run": {"program", "args", "start_utc"},
 }

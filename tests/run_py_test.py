@@ -40,6 +40,13 @@ def manifest(spsc=SPSC, noise=NOISE, load=LOAD):
 README = "# x\n\n<!-- results:spsc-summary -->\n<!-- /results -->\n\n<!-- results:noise-floor -->\n<!-- /results -->\n"
 
 
+def edit(root, name, change):
+    path = root / "results" / name
+    d = json.loads(path.read_text())
+    change(d)
+    path.write_text(json.dumps(d))
+
+
 def scratch():
     root = Path(tempfile.mkdtemp(prefix="run_py_test_"))
     (root / "results").mkdir()
@@ -48,6 +55,20 @@ def scratch():
     shutil.copy(SRC / "tests" / "check_environment_json.py", root / "tests")
     for f in SPSC + [NOISE, LOAD]:
         shutil.copy(SRC / "results" / f, root / "results")
+        # These real files predate note 008's placement fix: add the two fields
+        # the report now requires, so the copies exercise run.py's logic. They
+        # are test fixtures here, never published.
+        def upgrade(d):
+            d["environment"]["placement"]["memory_policy"] = "bind 0"
+            blocks = []
+            if "load" in d:
+                blocks = list(d["load"].values())
+            if "spsc" in d:
+                blocks = [b for p in d["spsc"]["pairs"] for q in p["queues"].values() for b in q.values()]
+            for b in blocks:
+                for r in b["runs"]:
+                    r["memory_node"] = 0
+        edit(root, f, upgrade)
     (root / "results" / "published.toml").write_text(manifest())
     (root / "README.md").write_text(README)
     return root
@@ -57,13 +78,6 @@ def run(root, *args):
     p = subprocess.run([sys.executable, "-I", str(root / "run.py"), "report", "--root", str(root), *args],
                        capture_output=True, text=True)
     return p.returncode, p.stdout + p.stderr
-
-
-def edit(root, name, change):
-    path = root / "results" / name
-    d = json.loads(path.read_text())
-    change(d)
-    path.write_text(json.dumps(d))
 
 
 root = scratch()

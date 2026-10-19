@@ -3,6 +3,7 @@
 #pragma once
 
 #include <lfipc/bench/load.hpp>
+#include <lfipc/bench/placement.hpp>
 #include <lfipc/shm.hpp>
 
 #include <sched.h>
@@ -161,6 +162,7 @@ void run_load_xproc(const load_config& c, load_result& r) {
         r.reason = "consumer process ended early (status " + std::to_string(status) + ")";
     else
         detail::finish_load(c, r, sync);
+    if (r.ok || r.reason.rfind("producer lateness", 0) == 0) apply_placement(r, &fwd->ring(), c.producer_cpu);
     ::munmap(mem, sizeof(detail::xproc_shared));
 }
 

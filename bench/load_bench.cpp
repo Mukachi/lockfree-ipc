@@ -9,6 +9,7 @@
 #include <lfipc/bench/clock_block.hpp>
 #include <lfipc/bench/load_block.hpp>
 #include <lfipc/bench/noise_block.hpp>
+#include <lfipc/bench/placement.hpp>
 #include <lfipc/bench/run_file.hpp>
 
 #include <cstdio>
@@ -42,10 +43,13 @@ int main(int argc, char** argv) {
                 c.producer_cpu = producer;
                 c.consumer_cpu = consumer;
                 c.ticks_per_ns = clk.cal.ticks_per_ns;
-                lfipc::test::plain out, back;
+                // On the producer's CPU, so on its node (placement.hpp).
+                auto out = make_on_cpu<lfipc::test::plain>(producer);
+                auto back = make_on_cpu<lfipc::test::plain>(producer);
                 auto r = std::make_unique<load_result>();
-                if (mode) run_load(out, back, c, *r);
-                else run_load(out, c, *r);
+                if (mode) run_load(*out, *back, c, *r);
+                else run_load(*out, c, *r);
+                apply_placement(*r, out.get(), producer);
                 std::printf("rate %.0f/s %s: %s\n", rate, mode ? "round trip" : "one-way", r->ok ? "ok" : r->reason.c_str());
                 all_ok = all_ok && r->ok;
                 (mode ? runs_rt : runs).push_back(std::move(r));

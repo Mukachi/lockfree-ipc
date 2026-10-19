@@ -10,7 +10,10 @@
 #include <cstdint>
 #include <fstream>
 #include <limits>
+#include <memory>
+#include <new>
 #include <sched.h>
+#include <sys/mman.h>
 #include <string>
 #include <thread>
 #include <vector>
@@ -106,8 +109,9 @@ inline bool pin_to(int cpu) noexcept {
 #endif
 }
 
-// One flag per cache line, so each hand-off moves exactly one line.
-struct alignas(64) flag_line {
+// One flag per adjacent-line pair (128 bytes): on this CPU the prefetcher moves
+// lines in pairs, so 64-byte flags could share (note 006, v3).
+struct alignas(128) flag_line {
     std::atomic<std::uint64_t> v{0};
 };
 
@@ -123,7 +127,35 @@ inline cross_cpu_pair measure_pair(int a, int b, std::size_t round_trips = defau
                                    std::size_t warmup = default_cross_cpu_warmup) {
     const std::size_t n = warmup + round_trips;
     std::vector<ticks> a_send(n), a_recv(n), b_recv(n), b_send(n);
-    detail::flag_line ping, pong;  // ping written by A, pong by B
+    // The flags are first touched on A's CPU, so they live on A's NUMA node:
+    // from an unpinned caller they would land wherever it runs (note 008, Review).
+    // In fresh pages (not the allocator's, which may have been touched on
+    // another node by an earlier thread), first touched on A's CPU.
+    void* lines = MAP_FAILED;
+    {
+        std::thread t([&] {
+            if (!detail::pin_to(a)) return;
+            lines = ::mmap(nullptr, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            if (lines != MAP_FAILED) {
+                new (lines) detail::flag_line();
+                new (static_cast<char*>(lines) + 2048) detail::flag_line();  // its own 128-byte pair
+            }
+        });
+        t.join();
+    }
+    if (lines == MAP_FAILED) {
+        cross_cpu_pair p;
+        p.a = a;
+        p.b = b;
+        p.reason = "cannot pin to CPU " + std::to_string(a);
+        return p;
+    }
+    struct unmap {
+        void* p;
+        ~unmap() { ::munmap(p, 4096); }
+    } release{lines};
+    detail::flag_line& ping = *std::launder(static_cast<detail::flag_line*>(lines));  // written by A
+    detail::flag_line& pong = *std::launder(reinterpret_cast<detail::flag_line*>(static_cast<char*>(lines) + 2048));  // by B
     std::atomic<int> b_state{0};   // 0 starting, 1 ready, -1 could not pin
     bool a_pinned = false;
 

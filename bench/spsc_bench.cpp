@@ -17,6 +17,7 @@
 #include <lfipc/bench/clock_block.hpp>
 #include <lfipc/bench/load_block.hpp>
 #include <lfipc/bench/noise_block.hpp>
+#include <lfipc/bench/placement.hpp>
 #include <lfipc/bench/run_file.hpp>
 
 #include <cstdio>
@@ -30,13 +31,20 @@ using namespace lfipc::bench;
 
 using runner = void (*)(const load_config&, load_result&, bool echo);
 
-// Fresh queues for every run: the forward queue, and a return one for echo runs.
+// Fresh queues for every run: the forward queue, and a return one for echo
+// runs; constructed on the producer's CPU, so on its node (placement.hpp).
 template <typename Sut>
 void run_queue(const load_config& c, load_result& r, bool echo) {
-    auto out = std::make_unique<Sut>();
-    if (!echo) return run_load(*out, c, r);
-    auto back = std::make_unique<Sut>();
-    run_load(*out, *back, c, r);
+    auto out = make_on_cpu<Sut>(c.producer_cpu);
+    auto back = echo ? make_on_cpu<Sut>(c.producer_cpu) : nullptr;
+    if (!out || (echo && !back)) {
+        r = {};
+        r.reason = "cannot pin to producer CPU " + std::to_string(c.producer_cpu) + " to place the queue";
+        return;
+    }
+    if (echo) run_load(*out, *back, c, r);
+    else run_load(*out, c, r);
+    apply_placement(r, out.get(), c.producer_cpu);
 }
 
 struct queue_entry {

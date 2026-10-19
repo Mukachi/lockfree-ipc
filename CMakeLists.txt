@@ -216,3 +216,7 @@ if(LFIPC_BASELINES)
   target_link_libraries(shm_bench PRIVATE lfipc lfipc_baselines Threads::Threads)
   target_compile_definitions(shm_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")
 endif()
+
+add_executable(placement_test tests/placement_test.cpp)
+target_link_libraries(placement_test PRIVATE lfipc Threads::Threads)
+add_test(NAME placement_test COMMAND placement_test)

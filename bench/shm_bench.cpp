@@ -14,6 +14,7 @@
 #include <lfipc/bench/load_block.hpp>
 #include <lfipc/bench/load_xproc.hpp>
 #include <lfipc/bench/noise_block.hpp>
+#include <lfipc/bench/placement.hpp>
 #include <lfipc/bench/run_file.hpp>
 
 #include <cstdio>
@@ -25,11 +26,20 @@ namespace {
 
 using namespace lfipc::bench;
 
+// Queues constructed on the producer's CPU, so on its node, as the process
+// version's segments are (placement.hpp).
 void run_threads(const load_config& c, load_result& r, bool echo) {
-    auto out = std::make_unique<ring_sut<lfipc::spsc_v3>>();
-    if (!echo) return run_load(*out, c, r);
-    auto back = std::make_unique<ring_sut<lfipc::spsc_v3>>();
-    run_load(*out, *back, c, r);
+    using sut = ring_sut<lfipc::spsc_v3>;
+    auto out = make_on_cpu<sut>(c.producer_cpu);
+    auto back = echo ? make_on_cpu<sut>(c.producer_cpu) : nullptr;
+    if (!out || (echo && !back)) {
+        r = {};
+        r.reason = "cannot pin to producer CPU " + std::to_string(c.producer_cpu) + " to place the queue";
+        return;
+    }
+    if (echo) run_load(*out, *back, c, r);
+    else run_load(*out, c, r);
+    apply_placement(r, out.get(), c.producer_cpu);
 }
 
 void run_processes(const load_config& c, load_result& r, bool echo) {

@@ -14,7 +14,7 @@ import sys
 
 LOAD_FIELDS = {"mode", "sut", "producer_cpu", "consumer_cpu", "one_way_offset_bound", "runs"}
 BOUND_FIELDS = {"ok", "theta_lo_ns", "theta_hi_ns", "round_trips", "converged"}
-RUN_COMMON = {"rate_per_s", "interval_ns", "messages", "warmup_discarded", "ok", "lateness"}
+RUN_COMMON = {"rate_per_s", "interval_ns", "messages", "warmup_discarded", "memory_node", "ok", "lateness"}
 RUN_OK = {"one_way": RUN_COMMON | {"out_of_order", "negative", "one_way"},
           "round_trip": RUN_COMMON | {"out_of_order", "negative", "round_trip"}}
 RUN_REFUSED = RUN_COMMON | {"reason"}

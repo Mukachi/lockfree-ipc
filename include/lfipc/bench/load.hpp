@@ -46,6 +46,7 @@ struct load_result {
     std::string reason;  // empty when ok; histograms are filled even on a lateness refusal
     double rate_per_s = 0.0;
     double interval_ticks = 0.0;   // T
+    int memory_node = -1;          // NUMA node of the queue's memory, set by the caller (note 008, Review)
     std::size_t messages = 0;
     std::size_t warmup_discarded = 0;
     int producer_cpu = -1, consumer_cpu = -1;

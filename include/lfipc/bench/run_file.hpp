@@ -5,6 +5,7 @@
 
 #include <lfipc/bench/environment.hpp>
 #include <lfipc/bench/json.hpp>
+#include <lfipc/bench/placement.hpp>
 
 #include <cstdio>
 #include <ctime>
@@ -36,7 +37,13 @@ struct run_file {
     run_file(int argc, char** argv, const std::string& results_dir, const std::string& name)
         : path(argc > 1 ? argv[1] : default_run_path(results_dir, name)) {
         published = is_published(path, results_dir);
-        const auto env = capture_environment(env_reader{}, argc, argv);
+        auto env = capture_environment(env_reader{}, argc, argv);
+        // Every page from here on, on the benchmark CPUs' node (note 008, Review).
+        const int node = cpu_node(env.reserved.empty() ? 2 : env.reserved.front());
+        std::string bind_error;
+        if (!bind_memory_to_node(node, bind_error))
+            std::fprintf(stderr, "%s: cannot bind memory to node %d: %s\n", name.c_str(), node, bind_error.c_str());
+        env.memory_policy = memory_policy();
         const auto failed = bench_mode_failures(env);
         refused = published && !failed.empty();
         w.begin_object();

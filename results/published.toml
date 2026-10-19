@@ -1,30 +1,9 @@
 # Published result sets: the files run.py report reads (design note 007).
 # results/ keeps every run, superseded ones included; publishing is listing
 # a file here. Each set must share one commit, machine and kernel command line.
-
-[noise]
-note = "005"
-runs = ["noise-dev-lnx01-20261019T121236Z.json"]
-
-# The clock blocks of the published SPSC runs: the same conditions.
-[clock]
-note = "001"
-runs = ["spsc-dev-lnx01-20261019T163730Z.json",
-        "spsc-dev-lnx01-20261019T165847Z.json",
-        "spsc-dev-lnx01-20261019T172005Z.json"]
-
-[histogram]
-note = "002"
-runs = ["histogram-dev-lnx01-20261019T184118Z.json",
-        "histogram-dev-lnx01-20261019T184125Z.json",
-        "histogram-dev-lnx01-20261019T184133Z.json"]
-
-[load]
-note = "003"
-runs = ["load-dev-lnx01-20261019T174123Z.json"]
-
-[spsc]
-note = "006"
-runs = ["spsc-dev-lnx01-20261019T163730Z.json",
-        "spsc-dev-lnx01-20261019T165847Z.json",
-        "spsc-dev-lnx01-20261019T172005Z.json"]
+#
+# Empty since 2026-10-19: no earlier run controlled where its memory lived.
+# Queues allocated by the unpinned main thread were on the far NUMA node, and
+# glibc's per-thread arenas defeat first-touch placement. Benchmarks now bind
+# their memory to the measured node and record it (memory_policy, memory_node);
+# run.py refuses runs without both. Every set is being re-measured (note 008).

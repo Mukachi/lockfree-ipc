@@ -80,6 +80,7 @@ struct environment {
     std::map<std::string, std::string> vulnerabilities;
     // Placement: fence is the housekeeping set; reserved is online minus fence.
     opt_str fence_system, fence_user, cgroup, affinity;
+    opt_str memory_policy;  // set by the benchmark program (run_file), not read from files
     std::vector<int> reserved;
     // Power, over the reserved CPUs
     opt_str governor;  // the common value, or "mixed: ..." if they differ
@@ -396,6 +397,7 @@ inline void write_environment_block(json_writer& w, const environment& e, bool p
     w.member("reserved", e.reserved.empty() ? opt_str{} : opt_str{detail::cpu_list_string(e.reserved)});
     w.member("cgroup", e.cgroup);
     w.member("affinity", e.affinity);
+    w.member("memory_policy", e.memory_policy);
     w.end_object();
 
     w.key("build");

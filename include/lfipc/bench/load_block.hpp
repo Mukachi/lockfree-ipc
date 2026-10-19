@@ -48,6 +48,7 @@ inline void write_load_block(json_writer& w, std::string_view sut, const cross_c
         w.member("interval_ns", ns(r->interval_ticks));
         w.member("messages", r->messages);
         w.member("warmup_discarded", r->warmup_discarded);
+        w.member("memory_node", r->memory_node);
         w.member("ok", r->ok);
         if (!r->ok) w.member("reason", r->reason);
         write_histogram_block(w, r->lateness, ticks_per_ns, "lateness");
