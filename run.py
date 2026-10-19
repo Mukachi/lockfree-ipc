@@ -368,8 +368,8 @@ def readme_blocks(sets):
                                   f"\n\nOne-way latency in ns, CPUs 2 → 3 (separate cores), range over "
                                   f"{len(runs)} runs. Full tables and conditions: [RESULTS.md](RESULTS.md).\n")
     else:
-        blocks["spsc-summary"] = ("SPSC figures are being re-measured: the earlier runs placed the queues on the "
-                                  "far NUMA node (design note 008, Review).\n")
+        blocks["spsc-summary"] = ("SPSC figures are being re-measured after two fixes to the harness: memory "
+                                  "placement, and false sharing in the load generator (design note 008, Review).\n")
     if "noise" in sets:
         s = sets["noise"][1][0][1]["noise_bench"]["summary"]
         blocks["noise-floor"] = (f"Noise floor on the reserved CPUs: at most "

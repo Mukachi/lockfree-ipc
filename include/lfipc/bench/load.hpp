@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <thread>
 #include <type_traits>
@@ -223,8 +224,19 @@ inline void finish_load(const load_config& c, load_result& r, const load_sync& s
     r.ok = true;
 }
 
-// Producer and consumer as two pinned threads. Histograms are constructed
-// before the threads start, so their pages are mapped.
+// The consumer's results, apart from the producer's: in one shared
+// load_result the consumer's latency histogram (min and max, stored on every
+// message) and the producer's lateness histogram shared a cache line, so the
+// harness itself ping-ponged a line between the measured cores on every
+// message (note 008, Review). 128-byte aligned and padded: its own line pair.
+struct alignas(128) consumer_results {
+    load_result r;
+    char pad[128];
+};
+
+// Producer and consumer as two pinned threads, each recording into its own
+// results. Histograms are constructed before the threads start, so their
+// pages are mapped.
 template <bool Echo, load_sut Sut, load_sut Back>
 void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
     if (!prepare_load(c, r, Echo)) return;
@@ -232,13 +244,15 @@ void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
     const std::size_t n = warm + c.messages;
     std::vector<ticks> offset;  // filled by the producer (fill_schedule) before it reports ready
     load_sync sync;
+    auto mine = std::make_unique<consumer_results>();
+    load_result& cr = mine->r;
 
     std::thread consumer([&] {
         if (!detail::pin_to(c.consumer_cpu)) sync.failed.fetch_add(1);
         sync.ready.fetch_add(1, std::memory_order_release);
         while (sync.t0.load(std::memory_order_acquire) == 0) detail::cpu_relax();
         if (sync.abort.load()) return;
-        consumer_loop<Echo>(sut, back, r, warm, n);
+        consumer_loop<Echo>(sut, back, cr, warm, n);
     });
     std::thread producer([&] {
         if (!detail::pin_to(c.producer_cpu)) sync.failed.fetch_add(1);
@@ -253,6 +267,9 @@ void run_load_impl(Sut& sut, Back& back, const load_config& c, load_result& r) {
     start_schedule(sync, c.ticks_per_ns);
     producer.join();
     consumer.join();
+    r.latency = std::move(cr.latency);
+    r.out_of_order = cr.out_of_order;
+    r.negative = cr.negative;
     finish_load(c, r, sync);
 }
 
