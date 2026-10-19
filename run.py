@@ -20,7 +20,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-SETS = ("noise", "clock", "histogram", "load", "spsc")
+SETS = ("noise", "clock", "histogram", "load", "spsc", "shm")
 BLOCK = re.compile(r"(<!-- results:(?P<name>[a-z0-9-]+) -->\n)(?P<body>.*?)(<!-- /results -->)", re.S)
 MEAN = re.compile(r"\b(mean|average|avg)\b", re.I)
 QUEUES = ("spsc_v1", "spsc_v2", "spsc_v3", "moodycamel", "boost")
@@ -91,7 +91,7 @@ def validate(root, name, files):
         if not e["build"]["clean"]:
             raise ReportError(f"{name}: {f}: built from a tree with uncommitted changes")
         need = {"noise": ["noise_bench"], "clock": ["clock"], "histogram": ["clock", "record_cost"],
-                "load": ["load"], "spsc": ["spsc"]}[name]
+                "load": ["load"], "spsc": ["spsc"], "shm": ["shm"]}[name]
         missing = [k for k in need if k not in d]
         if missing:
             raise ReportError(f"{name}: {f}: no {missing} block")
@@ -99,6 +99,11 @@ def validate(root, name, files):
             raise ReportError(f"{name}: {f}: clock refused: {d['clock'].get('reason')}")
         if name == "load" and set(d["load"]) != {"one_way", "round_trip"}:
             raise ReportError(f"{name}: {f}: load block is not one mode per run (note 003, amended)")
+        if name == "shm":
+            for p in d["shm"]["pairs"]:
+                for t, blocks in p["transports"].items():
+                    if set(blocks) != {"one_way", "round_trip"}:
+                        raise ReportError(f"{name}: {f}: {t} is not one mode per run (note 003, amended)")
         if name == "spsc":
             for p in d["spsc"]["pairs"]:
                 for q, blocks in p["queues"].items():
@@ -275,8 +280,28 @@ def spsc_section(note, runs):
     return out
 
 
+def shm_section(note, runs):
+    s = runs[0][1]["shm"]
+    pairs = [(p["producer_cpu"], p["consumer_cpu"]) for p in s["pairs"]]
+    out = [f"## Shared-memory transport (note {note})", "",
+           f"v3 between two processes (a `shm_open` segment; the consumer is a forked process that attaches by "
+           f"name) against v3 between two threads, measured back to back in the same run. Capacity "
+           f"{s['capacity']}, {s['message_bytes']}-byte messages, {s['seconds_per_rate']:g} s per rate.", ""]
+    for pair in pairs:
+        where = "hyper-thread siblings" if pair[1] - pair[0] == 44 else "different cores, same socket"
+        for mode, title in (("one_way", "one-way"), ("round_trip", "round trip")):
+            rows = []
+            for t in ("threads", "processes"):
+                blocks = [p["transports"][t][mode] for _, d in runs for p in d["shm"]["pairs"]
+                          if (p["producer_cpu"], p["consumer_cpu"]) == pair]
+                rows += [[t] + r for r in load_rows(blocks, mode, len(runs))]
+            out += [f"### {pair[0]} → {pair[1]} ({where}), {title}", "",
+                    table(["Transport", "Rate", "Published", "p50", "p99", "p99.9", "p99.99"], rows), ""]
+    return out
+
+
 SECTIONS = {"noise": noise_section, "clock": clock_section, "histogram": histogram_section,
-            "load": load_section, "spsc": spsc_section}
+            "load": load_section, "spsc": spsc_section, "shm": shm_section}
 
 
 def results_md(sets):
