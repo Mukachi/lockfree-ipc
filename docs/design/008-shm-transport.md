@@ -92,7 +92,7 @@ correctness rests on the stress test and on ARM (CI, to come), not on TSan.
 
 ## Tasks
 
-- [ ] `include/lfipc/shm.hpp`: segment, header, create/attach, stale recovery, liveness; S2–S4 tests
+- [x] `include/lfipc/shm.hpp`: segment, header, create/attach, stale recovery, liveness; S2–S4 tests
 - [ ] Two-process stress test (S1)
 - [ ] Cross-process generator (fork, shared control and results)
 - [ ] `bench/shm_bench`, published through the manifest; reviewed runs
@@ -103,3 +103,4 @@ correctness rests on the stress test and on ARM (CI, to come), not on TSan.
 |---|---|---|
 | 2026-10-19 | Draft | Written for review |
 | 2026-10-19 | Agreed | Approved by Shep: named segments (`shm_open`), layout validation in the header, stale-segment replacement only when the creator is gone, fork-based cross-process measurement published beside v3's thread results |
+| 2026-10-19 | Built (partial) | `shm.hpp`: `shm_spsc<T, N, Separation, Cached>`, header then ring at the ring's alignment (320 bytes for 8 × 8-byte slots). A segment is removed only with proof it is stale: our magic and a creator pid that no longer exists; too small, still initialising or not ours is never touched, which closes the race with a creator mid-setup. Tests: create/attach through two mappings; S2 each mismatch refused and named (capacity, type tag, type size, separation, version; a separation mismatch also names the segment size, which differs too); attach waits for ready, times out without it; S3 a live segment is refused naming its pid, a dead creator's is replaced; S4 a killed attacher is reported gone. No segment is left in /dev/shm. Clean under TSan and ASan, builds for aarch64 |

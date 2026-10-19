@@ -198,3 +198,7 @@ if(Python3_FOUND)
   add_test(NAME run_py_test COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/run_py_test.py ${CMAKE_SOURCE_DIR})
   add_test(NAME report_check COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/run.py report --check)
 endif()
+
+add_executable(shm_test tests/shm_test.cpp)
+target_link_libraries(shm_test PRIVATE lfipc Threads::Threads)
+add_test(NAME shm_test COMMAND shm_test)
