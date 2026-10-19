@@ -25,7 +25,10 @@ namespace lfipc {
 // (producer) or empty (consumer). A stale copy errs safely: an old head makes
 // the ring look fuller, an old tail emptier, so the cost is a reload, never
 // an overwrite or a read of an unwritten slot.
-template <typename T, std::size_t Capacity, std::size_t Separation = 64, bool Cached = false>
+//
+// The defaults are the measured choice, v3 (note 006, Review): cached counters
+// and 128-byte separation. v1 and v2 stay below, named, with their results.
+template <typename T, std::size_t Capacity, std::size_t Separation = 128, bool Cached = true>
 class spsc_ring {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable (S4)");
     static_assert(Capacity >= 2 && (Capacity & (Capacity - 1)) == 0, "Capacity must be a power of two");
@@ -96,7 +99,9 @@ template <typename T, std::size_t Capacity>
 using spsc_v2 = spsc_ring<T, Capacity, 64, true>;
 
 // v3: v2 with 128-byte separation, against Broadwell's adjacent-line prefetcher.
+// The final queue: the same as spsc_ring's defaults.
 template <typename T, std::size_t Capacity>
 using spsc_v3 = spsc_ring<T, Capacity, 128, true>;
+static_assert(std::is_same_v<spsc_ring<int, 8>, spsc_v3<int, 8>>, "the default ring is v3");
 
 }  // namespace lfipc
