@@ -1,6 +1,6 @@
 # 008 — Shared-memory transport
 
-**Status:** Agreed · **Updated:** 2026-10-19
+**Status:** Measured · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -73,7 +73,7 @@ counters into the results region before exiting. Same pairs (2→3, 2→46), rat
 v3's cross-thread one.
 
 **What TSan cannot do.** ThreadSanitizer sees one process; it cannot check two. Cross-process
-correctness rests on the stress test and on ARM (CI, to come), not on TSan.
+correctness rests on the stress test and on ARM (CI, to come: note 009), not on TSan.
 
 ## Spec
 

@@ -21,9 +21,9 @@ It does:
 
 It does not:
 
-- support more than one producer or consumer (MPMC is a later note);
+- support more than one producer or consumer (MPMC is a later note: 010);
 - go across processes yet. The layout allows it; the transport (mapping, naming, lifetime) is a
-  later note;
+  later note (008);
 - block or wait. A full queue returns `false`; the caller decides.
 - batch or hand out in-place slots (`claim`/`publish`). Possible later variants, each measured.
 
@@ -39,7 +39,7 @@ wasted to tell full from empty.
 `tail` with acquire, reads the slot, then stores `head` with release; the producer loads `head`
 with acquire. On x86 these are plain moves (no `lock` prefix, no fence); on ARM they are
 `ldar`/`stlr`. The ARM build is where a missing ordering would show, which is why correctness is
-also to be run there (CI, to come).
+also to be run there (CI, to come: note 009).
 
 **Variants, each measured against the previous:**
 
@@ -50,7 +50,7 @@ also to be run there (CI, to come).
 | `v3` | `head`, `tail` and the slots separated by 128 bytes, not 64 | whether Broadwell's adjacent-line prefetcher (which fetches lines in 128-byte pairs) makes 64-byte separation false sharing in practice |
 
 The final queue is the best measured variant; the losing variants stay in the repo, measured.
-**Chosen: v3** (Review, 2026-10-19). `spsc_ring<T, N>` defaults to it.
+**Chosen: v3** (Review, 2026-10-19). `spsc_ring<T, N>` defaults to it. A fourth variant, v4 with padded slots, was measured later and did not replace it (note 011).
 
 **Shared-memory ready.** `T` must be trivially copyable (`static_assert`). The queue's state is
 standard-layout, holds no pointers, and puts the slots inline, so it can be placed in a mapped

@@ -160,7 +160,7 @@ Values shown are placeholders, not results.
       cause deferred to the queue work, where cross-socket latency is the measured quantity
 - [x] JSON `clock` block: `json.hpp`, `write_clock_block()`, `bench/clock_bench`
 - [x] Tests for S1–S9, including a forced-refusal test
-- [ ] First run on dev-lnx01 under `bench-on`; results reviewed here
+- [x] First run on dev-lnx01 under `bench-on`; results reviewed here
 
 ## Review
 
@@ -195,3 +195,4 @@ Values shown are placeholders, not results.
 | 2026-10-18 | Measured | Rerun on CPU 2 under the fence: `results/clock-dev-lnx01-20261018T220233Z.json` (commit ee31e87, clean, every bench-mode condition met). Overhead p50 21.4 / p99 23.2 / p99.9 24.1 ns, unchanged; max 5.8 µs (3.0 ms on CPU 1 under the fence; 5–254 µs before it). The histogram run straight after gave max 5.9 µs. Cross-CPU: 11 of 87 unconverged |
 | 2026-10-18 | Measured | Correction: from about 21:18 to 22:09 a deadlocked test process of Claude's (an ASan `load_test` built before the `closed_loop` fix, plus a TSan run left by a `timeout` that did not take effect) kept two threads spinning, pinned to CPUs 2 and 3. Under bench-on the fence moved them onto the housekeeping CPUs. So the 3.0 ms overhead max on CPU 1 at 21:57 coincided with two stray spinning threads on the housekeeping CPUs, and its cause is not established; the earlier rows attributing it to the fence's housekeeping load overstate the evidence. The move to CPU 2 stands on design grounds: the fence concentrates displaced load on housekeeping CPUs, so measurements belong on reserved ones. Runs on reserved CPUs in that window (load 21:38, clock and histogram 22:02) were away from the stray threads and stand. Leftover processes are now checked before every measured run |
 | 2026-10-19 | Measured | Superseded pending re-measurement: these runs did not control where memory lived; queues and shared lines were on the far NUMA node (note 008, Review). Every set is being re-measured with memory bound to the measured node and its placement recorded |
+| 2026-10-20 | Measured | Re-measured with memory bound to the measured node: the published clock set is now the clock block of the SPSC runs `results/spsc-dev-lnx01-20261020T175400Z.json`, `...181914Z.json`, `...184429Z.json` (the same conditions as the queue figures); `RESULTS.md` holds the figures. **Still open:** the two-speed cross-socket effect, deferred above to the queue work, was not explained there: the queue notes measure same-socket pairs only (no node-1 CPU is reserved; note 006, Measurement). No cross-socket latency is published, so no published figure depends on it |
