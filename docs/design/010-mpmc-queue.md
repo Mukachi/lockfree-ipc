@@ -1,0 +1,134 @@
+# 010 — MPMC queue
+
+**Status:** Draft · **Updated:** 2026-10-20
+
+## Proposal
+
+A bounded multi-producer, multi-consumer queue for fixed-size messages between threads. In a
+trading system the common shape is fan-in: several feed handlers or strategies feeding one
+gateway or risk check. Fan-out to a pool of workers is the other. Note 006's ring cannot serve
+either: two producers on it race on `tail`.
+
+As in note 006, it is built in measured steps against baselines, and the first figure to
+publish is the price of generality: MPMC against SPSC v3 on the same single pair.
+
+It does:
+
+- `try_push` and `try_pop` of a trivially copyable `T`, never blocking, never allocating;
+- keep a layout with no pointers, so the ring can later live in shared memory (note 008's
+  transport, unchanged);
+- extend note 003's generator to several producers and consumers;
+- publish one-way latency per variant and baseline, per shape (producers → consumers) and rate.
+
+It does not:
+
+- promise one global order across producers beyond what the algorithm gives (below);
+- put the queue in shared memory yet (a later step, reusing note 008);
+- block, wait or wake; a full queue returns `false`;
+- measure round trip (see Design, Measurement).
+
+## Design
+
+**Algorithm: Dmitry Vyukov's bounded MPMC queue** (published on 1024cores.net), the standard
+public design. Each slot carries a sequence number beside the data. Two positions,
+`enqueue_pos` and `dequeue_pos`, 64-bit, on their own lines.
+
+- Push: read `enqueue_pos`; if the slot's sequence equals it, the slot is free for this lap:
+  claim it with a CAS on `enqueue_pos`, write the data, then store the slot's sequence as
+  `pos + 1` with release. If the sequence is behind, the ring is full: return `false`. If ahead,
+  another producer took it: reload and retry.
+- Pop: the mirror: a slot whose sequence is `pos + 1` holds data; claim it with a CAS on
+  `dequeue_pos`, read, then store the sequence as `pos + capacity` with release, freeing it for
+  the next lap.
+
+Producers contend only with producers (on `enqueue_pos`), consumers only with consumers; a
+producer and a consumer meet only on a slot's sequence, as in the SPSC ring.
+
+**What it guarantees, stated plainly.** Messages from one producer are delivered in that
+producer's order; with one consumer that order is seen directly, and with several each consumer
+sees each producer's messages in increasing order. It is **not lock-free in the strict sense**: a
+producer stalled between its CAS and its sequence store (preempted, or hit by an SMI) holds that
+slot, and consumers see the queue as empty at that point until it finishes, even if later slots
+are full. Under the bench fence such stalls are rare (note 005's floor), but they would show in a
+consumer's tail as a stall of another thread. rigtorp's queue (below) shares this property;
+moodycamel's per-producer sub-queues and Boost's linked list do not.
+
+**Rejected: `fetch_add` tickets** (claim a position unconditionally, then wait for its turn). They
+avoid CAS retries under contention, but a producer that claimed a position must wait if the ring
+is full, so `try_push` could no longer return `false` without blocking. Not taken.
+
+**Variants, each measured against the previous:**
+
+| Variant | Change | What it should show |
+|---|---|---|
+| `v1` | Vyukov as above; positions 128 bytes apart (note 006's v3 lesson); slots packed (16-byte message + 8-byte sequence = 24 bytes) | the cost of the CAS and of the sequence handshake |
+| `v2` | each slot padded to its own 128 bytes | whether producers writing neighbouring slots at once (and consumers reading them) false-share; costs 5× the memory |
+
+**Baselines,** fetched by CMake into `build/` and pinned, as in note 006:
+
+| Queue | Version (checked 20 Oct 2026) | Note |
+|---|---|---|
+| moodycamel `ConcurrentQueue` | v1.0.5 (`9afb997`, 2026-04-03) | per-producer sub-queues; FIFO per producer only, no order across producers, "not linearizable" and "only eventually consistent" (its README); `try_enqueue` never allocates but can fail under contention even when pre-sized. Weaker semantics, published with that stated |
+| `boost::lockfree::queue` | Boost 1.92.0 (already fetched) | Michael–Scott linked queue on a fixed-size node pool; lock-free in the strict sense |
+| rigtorp `MPMCQueue` | v1.0 (`11ffb3c`, 2020; last commit 2023) | the same Vyukov design, widely used; a check on our implementation as much as a competitor |
+
+SPSC v3 joins at 1 → 1 only, as the reference.
+
+**Generator, several producers and consumers.** Note 003's generator, generalised; the
+one-producer, one-consumer case is the existing code path, unchanged.
+
+- *Producers.* Each runs note 003's open-loop loop at `rate / P`, scheduled from one `t0` with
+  producer `k` offset by `k / rate`, so the combined arrivals are evenly spaced at `rate`. Each
+  records its own lateness; a run is refused if any producer's p99 lateness exceeds its interval.
+- *Message.* Still 16 bytes (`seq`, `intended`), so figures compare with notes 006 and 008; the
+  producer's index goes in the top 8 bits of `seq`.
+- *Consumers.* Each records `receive − intended` into its own 128-byte-aligned results (note 008's
+  false-sharing lesson), merged after the run. Each checks that every producer's sequence numbers
+  arrive in increasing order. A consumer stops when the queue is empty and every producer has
+  finished; it reads that flag only on an empty poll, never on the timed path.
+- *Counts.* The run fails unless the consumers' received total equals the number sent.
+  Exactly-once delivery per message is the stress test's job (S1), not the benchmark's: a shared
+  bitmap would put a contended write on the measured path.
+- *Round trip: not measured.* An echo would need a return queue per producer and gives a figure
+  dominated by the return path. One-way relies on cross-CPU TSC agreement, which note 001 bounds.
+
+**Measurement.**
+
+- Shapes (producers → consumers), all on node 0's reserved cores, producers from CPU 2 upward,
+  then consumers: 1 → 1 (2 → 3, as note 006), 2 → 1, 4 → 1, 2 → 2, 4 → 4. Hyper-thread siblings
+  are not used (the siblings question is separate).
+- Aggregate rates 100k, 1M, 2M, 5M/s, 10 s each; 10M/s only where sustained. A refused rate is
+  published as refused.
+- Queues at capacity 1024. About 17 minutes per run of the whole matrix; three runs, published as
+  ranges via `run.py report` (a new `mpmc` set).
+
+## Spec
+
+- S1. Every message is delivered exactly once, and each consumer sees each producer's messages in
+  order: stress test with P × C threads (1×2, 2×1, 2×2, 4×4, 8×1), 8- and 64-byte messages, a
+  bitmap of every sequence number; natively, under TSan, and on ARM in CI.
+- S2. Full and empty are exact at capacity, including positions started just below 2^64.
+- S3. `try_push` and `try_pop` make no call, allocation or system call; on x86 each contains
+  exactly one locked instruction (the CAS) and no fence: checked in the compiled code.
+- S4. `T` is trivially copyable; the queue is standard-layout with no pointer members.
+- S5. The generalised generator: a producer held up shows in latency from the intended time
+  (note 003's S1 per producer); the consumers' totals and per-producer order are checked; a late
+  producer refuses the run; at 1 → 1 its figures for SPSC v3 overlap note 006's published ranges.
+- S6. Every variant and baseline is measured with the same harness, shapes and rates, with
+  `environment` and `noise` blocks; at least three runs published via `run.py report`.
+- S7. Compiles for aarch64 with warnings as errors (CI).
+
+## Tasks
+
+- [ ] `include/lfipc/mpmc.hpp`: v1, with S1–S4 tests
+- [ ] v2 (padded slots), same tests
+- [ ] Generator for P producers and C consumers, with S5 tests
+- [ ] Baselines fetched and wrapped
+- [ ] `bench/mpmc_bench` and the `mpmc` set in `run.py`
+- [ ] Three bench-on runs; variant chosen and recorded here
+
+## Review
+
+| Date | Stage | Finding |
+|---|---|---|
+| 2026-10-20 | Draft | Written for review |
