@@ -26,7 +26,7 @@ MEAN = re.compile(r"\b(mean|average|avg)\b", re.I)
 QUEUES = ("spsc_v1", "spsc_v2", "spsc_v3", "moodycamel", "boost")
 QUEUE_LABEL = {"spsc_v1": "v1", "spsc_v2": "v2", "spsc_v3": "**v3**", "moodycamel": "moodycamel", "boost": "Boost"}
 MPMC_QUEUES = ("mpmc_v1", "mpmc_v2", "moodycamel", "boost", "rigtorp", "spsc_v3")
-MPMC_LABEL = {"mpmc_v1": "v1", "mpmc_v2": "v2", "moodycamel": "moodycamel", "boost": "Boost", "rigtorp": "rigtorp",
+MPMC_LABEL = {"mpmc_v1": "v1", "mpmc_v2": "**v2**", "moodycamel": "moodycamel", "boost": "Boost", "rigtorp": "rigtorp",
               "spsc_v3": "SPSC v3 (reference)"}
 
 
@@ -352,7 +352,8 @@ def mpmc_section(note, runs):
            f"producer tokens, which its README calls almost always faster, need per-thread state the harness "
            f"does not carry), FIFO per producer only and not linearizable; Boost `lockfree::queue` "
            f"{s['baselines']['boost']}, the only one lock-free in the strict sense; rigtorp `MPMCQueue` "
-           f"{s['baselines']['rigtorp']}, the same design as ours. At 1 → 1, SPSC v3 is the reference.", ""]
+           f"{s['baselines']['rigtorp']}, the same design as ours, slots padded to 64 bytes. v2 is the chosen "
+           f"queue, `mpmc_ring`'s default. At 1 → 1, SPSC v3 is the reference.", ""]
     for i, sh in enumerate(s["shapes"]):
         cpus = sh["queues"][next(iter(sh["queues"]))]["one_way"]
         rows = []
@@ -409,6 +410,27 @@ def readme_blocks(sets):
     else:
         blocks["spsc-summary"] = ("SPSC figures are being re-measured after two fixes to the harness: memory "
                                   "placement, and false sharing in the load generator (design note 008, Review).\n")
+    if "mpmc" in sets:
+        runs = sets["mpmc"][1]
+        shapes = runs[0][1]["mpmc"]["shapes"]
+        rows = []
+        for q in ("mpmc_v2", "moodycamel", "boost", "rigtorp"):
+            for i, sh in enumerate(shapes):
+                if (sh["producers"], sh["consumers"]) not in ((2, 1), (4, 4)):
+                    continue
+                for rt in (1e6, 2e6):
+                    rs = [r for _, d in runs for r in d["mpmc"]["shapes"][i]["queues"][q]["one_way"]["runs"]
+                          if r["rate_per_s"] == rt]
+                    p = [r["one_way"]["percentiles_ns"] for r in rs if r["ok"]]
+                    label = rate(rt) + ("" if len(p) == len(rs) else f" ({len(p)}/{len(rs)} runs)")
+                    rows.append([MPMC_LABEL[q], f"{sh['producers']} → {sh['consumers']}", label,
+                                 rng([x["p50"] for x in p]), rng([x["p99"] for x in p]), rng([x["p999"] for x in p])])
+        blocks["mpmc-summary"] = (table(["Queue", "Producers → consumers", "Rate", "p50", "p99", "p99.9"], rows) +
+                                  f"\n\nMPMC one-way latency in ns at the aggregate rate, range over {len(runs)} "
+                                  f"runs; v2 is this repo's queue. moodycamel is measured through its token-free "
+                                  f"API. Full tables and conditions: [RESULTS.md](RESULTS.md).\n")
+    else:
+        blocks["mpmc-summary"] = "MPMC figures: not yet measured (design note 010).\n"
     if "noise" in sets:
         s = sets["noise"][1][0][1]["noise_bench"]["summary"]
         blocks["noise-floor"] = (f"Noise floor on the reserved CPUs: at most "

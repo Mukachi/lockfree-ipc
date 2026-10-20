@@ -37,6 +37,12 @@ runs = ["spsc-dev-lnx01-20261020T092145Z.json",
         "spsc-dev-lnx01-20261020T094245Z.json",
         "spsc-dev-lnx01-20261020T100347Z.json"]
 
+[mpmc]
+note = "010"
+runs = ["mpmc-dev-lnx01-20261020T151545Z.json",
+        "mpmc-dev-lnx01-20261020T154543Z.json",
+        "mpmc-dev-lnx01-20261020T161548Z.json"]
+
 [shm]
 note = "008"
 runs = ["shm-dev-lnx01-20261020T102449Z.json",

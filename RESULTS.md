@@ -14,6 +14,7 @@ HP ProLiant DL380 Gen9, BIOS P89 (08/29/2024); 2 × Intel(R) Xeon(R) CPU E5-2699
 | load (note 003) | 3 | 2026-10-20 09:16 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
 | spsc (note 006) | 3 | 2026-10-20 09:21 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
 | shm (note 008) | 3 | 2026-10-20 10:24 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
+| mpmc (note 010) | 3 | 2026-10-20 15:15 UTC | 8943c99 | performance | POLL | on | off | yes | 2-21,46-65 |
 
 Every run met note 004's bench-mode conditions (each file's `environment.bench_mode`, checked before use) and was built clean; compiler and flags are in each file's `environment.build`. Ranges are min–max over a set's runs.
 
@@ -259,3 +260,162 @@ v3 between two processes (a `shm_open` segment; the consumer is a forked process
 | processes | 2M/s | 3/3 | 135–137 | 160 | 171–192 | 195–200 |
 | processes | 5M/s | 3/3 | 131–132 | 163–168 | 171–177 | 181–198 |
 | processes | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+## MPMC queues (note 010)
+
+One-way latency from each message's intended send time, by shape (producers → consumers) and aggregate rate; capacity 1024, 16-byte messages, 10 s per rate. Each producer sends at its share of the rate, offset so arrivals are evenly spaced; a run is refused if any producer falls behind, or if any message is lost. v1: Vyukov's bounded queue, slots packed; v2: each slot on its own 128 bytes. Baselines: moodycamel `ConcurrentQueue` v1.0.5 (9afb997) through its token-free API (explicit producer tokens, which its README calls almost always faster, need per-thread state the harness does not carry), FIFO per producer only and not linearizable; Boost `lockfree::queue` 1.92.0, the only one lock-free in the strict sense; rigtorp `MPMCQueue` v1.0 (11ffb3c), the same design as ours, slots padded to 64 bytes. v2 is the chosen queue, `mpmc_ring`'s default. At 1 → 1, SPSC v3 is the reference.
+
+### 1 → 1 (CPUs 2 → 3)
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 189 | 289–295 | 318–339 | 357–393 |
+| v1 | 1M/s | 3/3 | 183–184 | 280–298 | 326–337 | 349–399 |
+| v1 | 2M/s | 3/3 | 183–184 | 287–289 | 339–367 | 357–400 |
+| v1 | 5M/s | 3/3 | 181 | 330–352 | 380–395 | 414–428 |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| **v2** | 100k/s | 3/3 | 161–162 | 228 | 260–263 | 271–276 |
+| **v2** | 1M/s | 3/3 | 147 | 219–221 | 265–291 | 286–303 |
+| **v2** | 2M/s | 3/3 | 149–150 | 218 | 267–276 | 279–289 |
+| **v2** | 5M/s | 3/3 | 145 | 216–217 | 266–285 | 294–319 |
+| **v2** | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 100k/s | 3/3 | 294–335 | 671–736 | 716–793 | 746–809 |
+| moodycamel | 1M/s | 3/3 | 314–348 | 634–683 | 716–739 | 758–811 |
+| moodycamel | 2M/s | 3/3 | 316–332 | 648–724 | 702–848 | 728–892 |
+| moodycamel | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 453–500 | 536–576 | 551–584 | 566–592 |
+| Boost | 1M/s | 3/3 | 419–499 | 499–556 | 519–578 | 531–760 |
+| Boost | 2M/s | 3/3 | 464–510 | 566–821 | 645–899 | 855–962 |
+| Boost | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| rigtorp | 100k/s | 3/3 | 196–197 | 251–252 | 259–260 | 266–268 |
+| rigtorp | 1M/s | 3/3 | 185–186 | 241–242 | 254–256 | 264–268 |
+| rigtorp | 2M/s | 3/3 | 180–181 | 242–244 | 259 | 275–281 |
+| rigtorp | 5M/s | 3/3 | 178–179 | 238–240 | 255–258 | 276–280 |
+| rigtorp | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| SPSC v3 (reference) | 100k/s | 3/3 | 172–176 | 253–258 | 263–301 | 273–319 |
+| SPSC v3 (reference) | 1M/s | 3/3 | 161–183 | 215–248 | 247–271 | 272–281 |
+| SPSC v3 (reference) | 2M/s | 3/3 | 166–182 | 206–248 | 258–293 | 271–317 |
+| SPSC v3 (reference) | 5M/s | 3/3 | 154–175 | 222–246 | 256–267 | 274–295 |
+| SPSC v3 (reference) | 10M/s | 3/3 | 142–158 | 289–314 | 342–384 | 395–547 |
+
+### 2 → 1 (CPUs 2, 3 → 4)
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 233–251 | 310–322 | 332–350 | 344–366 |
+| v1 | 1M/s | 3/3 | 227–228 | 305–307 | 328–330 | 339–345 |
+| v1 | 2M/s | 3/3 | 218–255 | 297–317 | 320–358 | 338–373 |
+| v1 | 5M/s | 3/3 | 228–244 | 327–350 | 347–446 | 410–494 |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| **v2** | 100k/s | 3/3 | 218–244 | 259–274 | 289–299 | 297–311 |
+| **v2** | 1M/s | 3/3 | 213–242 | 255–281 | 269–303 | 282–320 |
+| **v2** | 2M/s | 3/3 | 211–233 | 252–270 | 272–299 | 285–321 |
+| **v2** | 5M/s | 3/3 | 205–224 | 250–264 | 277–334 | 306–350 |
+| **v2** | 10M/s | 1/3 | 203 | 395 | 571 | 705 |
+| moodycamel | 100k/s | 3/3 | 299–346 | 689–711 | 753–800 | 782–851 |
+| moodycamel | 1M/s | 3/3 | 320–327 | 624–641 | 696–745 | 727–782 |
+| moodycamel | 2M/s | 3/3 | 310–330 | 596–626 | 659–739 | 695–780 |
+| moodycamel | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 482–570 | 577–621 | 583–636 | 588–653 |
+| Boost | 1M/s | 3/3 | 381–477 | 480–543 | 487–591 | 494–610 |
+| Boost | 2M/s | 3/3 | 401–443 | 517–679 | 586–818 | 679–882 |
+| Boost | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| rigtorp | 100k/s | 3/3 | 227–234 | 266–309 | 272–322 | 298–329 |
+| rigtorp | 1M/s | 3/3 | 217–248 | 306–318 | 318–338 | 325–350 |
+| rigtorp | 2M/s | 3/3 | 212–232 | 278–311 | 314–329 | 333–341 |
+| rigtorp | 5M/s | 3/3 | 226–237 | 363–380 | 397–421 | 425–438 |
+| rigtorp | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+### 4 → 1 (CPUs 2, 3, 4, 5 → 6)
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 235–242 | 310–323 | 332–341 | 340–350 |
+| v1 | 1M/s | 3/3 | 237–249 | 325–336 | 339–357 | 348–367 |
+| v1 | 2M/s | 3/3 | 239–252 | 323–325 | 347–352 | 357–364 |
+| v1 | 5M/s | 3/3 | 229–253 | 319–365 | 342–431 | 419–490 |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| **v2** | 100k/s | 3/3 | 229–256 | 269–301 | 286–328 | 294–338 |
+| **v2** | 1M/s | 3/3 | 243–254 | 292–305 | 313–331 | 326–347 |
+| **v2** | 2M/s | 3/3 | 213–245 | 258–297 | 280–325 | 293–341 |
+| **v2** | 5M/s | 3/3 | 213–218 | 258–263 | 301–312 | 316–333 |
+| **v2** | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 100k/s | 3/3 | 319–347 | 719–773 | 801–858 | 853–897 |
+| moodycamel | 1M/s | 3/3 | 298–344 | 677–699 | 753–791 | 786–839 |
+| moodycamel | 2M/s | 3/3 | 320–334 | 607–661 | 667–760 | 711–794 |
+| moodycamel | 5M/s | 3/3 | 334–1,312 | 1,714–5,373 | 2,122–6,254 | 2,777–7,128 |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 468–538 | 542–594 | 557–604 | 567–610 |
+| Boost | 1M/s | 3/3 | 464–573 | 549–603 | 571–610 | 580–620 |
+| Boost | 2M/s | 3/3 | 383–528 | 523–838 | 627–903 | 750–975 |
+| Boost | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| rigtorp | 100k/s | 3/3 | 228–239 | 306–329 | 320–345 | 330–354 |
+| rigtorp | 1M/s | 3/3 | 237–252 | 321–329 | 347–351 | 356–363 |
+| rigtorp | 2M/s | 3/3 | 218–239 | 269–303 | 288–339 | 313–352 |
+| rigtorp | 5M/s | 3/3 | 222 | 361–367 | 389–422 | 408–439 |
+| rigtorp | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+### 2 → 2 (CPUs 2, 3 → 4, 5)
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 282–318 | 339–377 | 383–414 | 405–443 |
+| v1 | 1M/s | 3/3 | 245–270 | 314–334 | 355–382 | 381–407 |
+| v1 | 2M/s | 3/3 | 232–284 | 301–355 | 335–395 | 367–453 |
+| v1 | 5M/s | 3/3 | 265–289 | 428–445 | 489–558 | 555–839 |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| **v2** | 100k/s | 3/3 | 267–281 | 297–311 | 303–317 | 309–323 |
+| **v2** | 1M/s | 3/3 | 270–290 | 309–331 | 318–341 | 354–543 |
+| **v2** | 2M/s | 3/3 | 247–268 | 286–307 | 297–318 | 328–514 |
+| **v2** | 5M/s | 3/3 | 238–249 | 309–318 | 355–369 | 398–415 |
+| **v2** | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 100k/s | 3/3 | 376–419 | 699–779 | 815–913 | 898–984 |
+| moodycamel | 1M/s | 3/3 | 336–400 | 638–704 | 732–815 | 800–888 |
+| moodycamel | 2M/s | 3/3 | 357–398 | 654–739 | 758–885 | 834–1,013 |
+| moodycamel | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 519–653 | 675–820 | 720–838 | 760–853 |
+| Boost | 1M/s | 3/3 | 587–610 | 729–785 | 770–821 | 788–901 |
+| Boost | 2M/s | 3/3 | 527–619 | 832–962 | 957–1,106 | 1,050–1,317 |
+| Boost | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| rigtorp | 100k/s | 3/3 | 269–270 | 296–302 | 304–309 | 314–317 |
+| rigtorp | 1M/s | 3/3 | 256–283 | 291–329 | 309–359 | 337–442 |
+| rigtorp | 2M/s | 3/3 | 241–260 | 291–318 | 334–355 | 368–400 |
+| rigtorp | 5M/s | 3/3 | 258–263 | 407–422 | 431–456 | 456–494 |
+| rigtorp | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+### 4 → 4 (CPUs 2, 3, 4, 5 → 6, 7, 8, 9)
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 278–320 | 355–391 | 403–435 | 430–472 |
+| v1 | 1M/s | 3/3 | 280–299 | 380–384 | 423–434 | 455–493 |
+| v1 | 2M/s | 3/3 | 264–309 | 359–394 | 414–441 | 475–506 |
+| v1 | 5M/s | 3/3 | 325–390 | 785–952 | 1,569–74.0 µs | 2,442–300.6 µs |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| **v2** | 100k/s | 3/3 | 274–299 | 304–332 | 311–339 | 320–349 |
+| **v2** | 1M/s | 3/3 | 294–319 | 327–351 | 334–358 | 341–466 |
+| **v2** | 2M/s | 3/3 | 270–287 | 313–331 | 327–355 | 341–373 |
+| **v2** | 5M/s | 3/3 | 280–324 | 380–450 | 478–620 | 691–785 |
+| **v2** | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 100k/s | 3/3 | 488–501 | 831–913 | 973–1,092 | 1,063–1,214 |
+| moodycamel | 1M/s | 3/3 | 438–458 | 810–865 | 982–1,074 | 1,097–1,223 |
+| moodycamel | 2M/s | 3/3 | 406–459 | 743–867 | 890–1,064 | 988–1,219 |
+| moodycamel | 5M/s | 2/3 | 380–425 | 1,261–1,288 | 1,845–1,867 | 2,275–2,315 |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 688–741 | 917–964 | 981–1,030 | 1,033–1,088 |
+| Boost | 1M/s | 3/3 | 600–690 | 837–952 | 933–1,041 | 1,017–1,150 |
+| Boost | 2M/s | 2/3 | 708–820 | 1,194–1,813 | 1,410–2,781 | 1,793–3,389 |
+| Boost | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| rigtorp | 100k/s | 3/3 | 278–295 | 306–330 | 313–339 | 319–345 |
+| rigtorp | 1M/s | 3/3 | 270–286 | 318–372 | 338–403 | 357–497 |
+| rigtorp | 2M/s | 3/3 | 267–275 | 326–340 | 351–374 | 377–406 |
+| rigtorp | 5M/s | 1/3 | 589 | 2,126 | 3,764 | 25.6 µs |
+| rigtorp | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |

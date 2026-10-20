@@ -37,7 +37,8 @@ def manifest(spsc=SPSC, noise=NOISE, load=LOAD):
             f'[load]\nnote = "003"\nruns = {q([load])}\n\n[spsc]\nnote = "006"\nruns = {q(spsc)}\n')
 
 
-README = "# x\n\n<!-- results:spsc-summary -->\n<!-- /results -->\n\n<!-- results:noise-floor -->\n<!-- /results -->\n"
+README = ("# x\n\n<!-- results:spsc-summary -->\n<!-- /results -->\n\n<!-- results:mpmc-summary -->\n<!-- /results -->\n\n"
+          "<!-- results:noise-floor -->\n<!-- /results -->\n")
 
 
 def edit(root, name, change):

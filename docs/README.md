@@ -24,7 +24,7 @@ Only Spec and Review are mandatory. Any section can be one line.
 | [007](design/007-results-report.md) | Results report | Measured |
 | [008](design/008-shm-transport.md) | Shared-memory transport | Measured |
 | [009](design/009-ci.md) | Continuous integration | Measured |
-| [010](design/010-mpmc-queue.md) | MPMC queue | Built |
+| [010](design/010-mpmc-queue.md) | MPMC queue | Measured |
 
 ## Decision records
 

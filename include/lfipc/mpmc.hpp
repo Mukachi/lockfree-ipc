@@ -42,7 +42,11 @@ struct alignas(SlotAlign == 0 ? std::max(alignof(std::atomic<std::uint64_t>), al
 // in shared memory (S4). The positions and the slots are 128 bytes apart (note
 // 006's v3). `SlotAlign` 0 packs the slots; 128 gives each its own pair of
 // lines (v2).
-template <typename T, std::size_t Capacity, std::size_t SlotAlign = 0>
+//
+// The default is the measured choice, v2 (note 010, Review): packed, the
+// consumer reading one slot and a producer writing the next share a line
+// whenever the queue is nearly empty. v1 stays below, named, with its results.
+template <typename T, std::size_t Capacity, std::size_t SlotAlign = 128>
 class mpmc_ring {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable (S4)");
     static_assert(Capacity >= 2 && (Capacity & (Capacity - 1)) == 0, "Capacity must be a power of two");
@@ -117,7 +121,9 @@ template <typename T, std::size_t Capacity>
 using mpmc_v1 = mpmc_ring<T, Capacity, 0>;
 
 // v2: each slot on its own 128 bytes, against false sharing between neighbours.
+// The final queue: the same as mpmc_ring's defaults.
 template <typename T, std::size_t Capacity>
 using mpmc_v2 = mpmc_ring<T, Capacity, 128>;
+static_assert(std::is_same_v<mpmc_ring<int, 8>, mpmc_v2<int, 8>>, "the default ring is v2");
 
 }  // namespace lfipc
