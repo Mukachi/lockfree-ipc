@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <string>
 
 namespace {
 
@@ -109,12 +110,13 @@ int main(int argc, char** argv) {
                         "involuntary switches %ld\n",
                         (unsigned long long)r->stops, (unsigned long long)loc, r->interrupts.size(),
                         r->softirqs.size(), r->involuntary_switches);
-#if defined(__x86_64__)
-            check(r->ok && loc > 0, "live: local timer interrupts counted on the spinning CPU (CPU 0)");
-#else
-            // LOC is x86's row; other architectures name their timer interrupt differently.
+            std::string types;
+            for (const auto& [name, n] : r->interrupts) types += " " + name + "=" + std::to_string(n);
+            std::printf("info  interrupts on CPU 0:%s\n", types.c_str());
+            // Not LOC alone: the timer's row depends on the machine (LOC on x86
+            // hardware, arch_timer on ARM, a hypervisor's own timer interrupt on
+            // some VMs, as on a CI runner, note 009).
             check(r->ok && !r->interrupts.empty(), "live: interrupts counted on the spinning CPU (CPU 0)");
-#endif
         }
     }
 
