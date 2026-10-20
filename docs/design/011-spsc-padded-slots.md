@@ -1,6 +1,6 @@
 # 011 — SPSC v4: padded slots
 
-**Status:** Draft · **Updated:** 2026-10-20
+**Status:** Agreed · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -75,3 +75,4 @@ of this is needed.
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-20 | Draft | Written for review |
+| 2026-10-20 | Agreed | Approved by Shep: v4 = v3 with each slot on its own 128 bytes via a `SlotAlign` parameter; whole SPSC set re-measured with v4, three runs; if chosen, the default and a shared-memory header version 2 with `slot_align`; earlier v3 figures stay labelled v3; no 64-byte variant unless the result calls for it |
