@@ -1,0 +1,32 @@
+#!/bin/sh
+SAVED=/run/bench.saved
+SAVED_KTHREADS=/run/bench.kthreads
+
+cpupower idle-set -E >/dev/null
+cpupower frequency-set -g schedutil >/dev/null
+for d in /sys/devices/system/cpu/intel_uncore_frequency/package_*; do
+  cat "$d/initial_min_freq_khz" > "$d/min_freq_khz"
+done
+
+# Lift the fence.
+for u in system.slice user.slice init.scope; do
+  systemctl set-property --runtime "$u" AllowedCPUs=
+done
+
+# Restore kernel work and interrupt placement as bench-on found it.
+if [ -f $SAVED ]; then
+  while read f v; do
+    echo "$v" > "$f" 2>/dev/null
+  done < $SAVED
+  rm $SAVED
+fi
+
+# Kernel threads back where they were.
+if [ -f $SAVED_KTHREADS ]; then
+  while read pid cpus; do
+    taskset -pc "$cpus" "$pid" >/dev/null 2>&1
+  done < $SAVED_KTHREADS
+  rm $SAVED_KTHREADS
+fi
+
+echo "bench mode OFF: power saving restored, uncore back to normal, CPUs released"

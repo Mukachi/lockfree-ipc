@@ -1,0 +1,6 @@
+#!/bin/sh
+# Run a benchmark outside bench-on's fence, as the user who called sudo, so it
+# can pin to the reserved CPUs. Usage: sudo bench-run <program> [args...]
+USER_NAME=${SUDO_USER:-$(id -un)}
+exec systemd-run --quiet --scope --slice=bench.slice \
+  --uid="$USER_NAME" --gid="$(id -gn "$USER_NAME")" -- "$@"

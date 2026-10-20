@@ -1,0 +1,51 @@
+#!/bin/sh
+# Reserved for benchmarks: node-0 cores 2-21 and their hyper-thread siblings 46-65.
+# Everything else (0-1, 22-45, 66-87) is housekeeping.
+HOUSE=0-1,22-45,66-87
+HOUSE_MASK=00fffffc,00003fff,ffc00003
+SAVED=/run/bench.saved
+SAVED_KTHREADS=/run/bench.kthreads
+
+cpupower frequency-set -g performance >/dev/null
+cpupower idle-set -D 2 >/dev/null
+for d in /sys/devices/system/cpu/intel_uncore_frequency/package_*; do
+  cat "$d/max_freq_khz" > "$d/min_freq_khz"
+done
+
+# Services and user programs off the reserved CPUs. Benchmarks start with bench-run.
+for u in system.slice user.slice init.scope; do
+  systemctl set-property --runtime "$u" AllowedCPUs=$HOUSE
+done
+
+# Save what we change, so bench-off restores it exactly.
+: > $SAVED
+for f in /sys/devices/virtual/workqueue/cpumask /proc/irq/default_smp_affinity /proc/sys/kernel/numa_balancing; do
+  echo "$f $(cat $f)" >> $SAVED
+done
+for f in /proc/irq/[0-9]*/smp_affinity_list; do
+  echo "$f $(cat $f)" >> $SAVED
+done
+
+# Unbound kernel work and interrupts off the reserved CPUs. Per-CPU device
+# queues cannot be moved; their writes fail quietly.
+echo $HOUSE_MASK > /sys/devices/virtual/workqueue/cpumask
+echo $HOUSE_MASK > /proc/irq/default_smp_affinity
+for f in /proc/irq/[0-9]*/smp_affinity_list; do
+  echo $HOUSE > "$f" 2>/dev/null
+done
+
+# Kernel threads (kthreadd and its children) off the reserved CPUs. Per-CPU
+# threads (kworker/N, ksoftirqd/N, migration/N) refuse; that fails quietly.
+: > $SAVED_KTHREADS
+for pid in 2 $(ps -o pid= --ppid 2); do
+  cpus=$(taskset -pc "$pid" 2>/dev/null | cut -d: -f2 | tr -d ' ')
+  [ -n "$cpus" ] || continue
+  echo "$pid $cpus" >> $SAVED_KTHREADS
+  taskset -pc $HOUSE "$pid" >/dev/null 2>&1
+done
+
+# Automatic NUMA balancing off: it scans each thread's memory from 1 s after
+# the thread starts, stopping it for ~0.6 ms each time (lockfree-ipc note 005).
+echo 0 > /proc/sys/kernel/numa_balancing
+
+echo "bench mode ON: performance governor, deep C-states off, uncore at max, NUMA balancing off, CPUs 2-21,46-65 reserved"

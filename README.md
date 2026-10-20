@@ -104,7 +104,7 @@ SPSC ring; exactly one `lock cmpxchg` in the MPMC ring).
   `isolcpus`), with services, kernel threads and interrupts fenced off them, the performance
   governor, deep C-states off, the uncore clock pinned, automatic NUMA balancing off, and every
   benchmark's memory bound to the measured node. Periodic firmware SMIs were removed in the BIOS.
-  The noise floor is measured in every run (note 005).
+  The noise floor is measured in every run (note 005). The setup scripts: [tools/machine](tools/machine).
 - **Every run records its conditions** (hardware, microcode, kernel command line, power, fence,
   placement, build commit and flags) and is refused for publication unless they are met and the
   build is clean (note 004).
