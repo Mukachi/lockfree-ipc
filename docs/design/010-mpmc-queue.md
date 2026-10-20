@@ -1,6 +1,6 @@
 # 010 — MPMC queue
 
-**Status:** Draft · **Updated:** 2026-10-20
+**Status:** Agreed · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -132,3 +132,4 @@ one-producer, one-consumer case is the existing code path, unchanged.
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-20 | Draft | Written for review |
+| 2026-10-20 | Agreed | Approved by Shep: Vyukov's bounded queue (not strictly lock-free, stated), v1 packed and v2 padded slots, baselines moodycamel ConcurrentQueue v1.0.5, Boost.Lockfree queue 1.92.0 and rigtorp MPMCQueue v1.0 with SPSC v3 at 1 → 1, generator for several producers and consumers, one-way only, shapes 1→1, 2→1, 4→1, 2→2, 4→4, rates 100k–5M/s |
