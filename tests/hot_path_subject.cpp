@@ -3,12 +3,14 @@
 // threads are found by their lambda names (S8). The histogram's record() sits
 // behind its own symbol (note 002, S1). The load generator's threads are found
 // by their lambda names inside run_load_impl, run with the test mailbox (note 003, S6).
-// SPSC try_push/try_pop sit behind lfipc_spsc_<variant>_<op> (note 006, S3). Counts come from the command
+// SPSC try_push/try_pop sit behind lfipc_spsc_<variant>_<op> (note 006, S3), MPMC's behind
+// lfipc_mpmc_<variant>_<op> (note 010, S3). Counts come from the command
 // line so the compiler cannot specialise the loops. Spec: docs/design/001-clock.md
 #include <lfipc/bench/cross_cpu.hpp>
 #include <lfipc/bench/histogram.hpp>
 #include <lfipc/bench/load.hpp>
 #include <lfipc/bench/noise.hpp>
+#include <lfipc/mpmc.hpp>
 #include <lfipc/shm.hpp>
 #include <lfipc/spsc.hpp>
 
@@ -40,6 +42,18 @@ extern "C" [[gnu::noinline]] void lfipc_hist_record(lfipc::bench::histogram<>& h
 LFIPC_SPSC_SUBJECT(v1)
 LFIPC_SPSC_SUBJECT(v2)
 LFIPC_SPSC_SUBJECT(v3)
+
+#define LFIPC_MPMC_SUBJECT(V)                                                                         \
+    using mpmc_##V##_subject = lfipc::mpmc_##V<lfipc::bench::message, 1024>;                           \
+    extern "C" [[gnu::noinline]] bool lfipc_mpmc_##V##_push(mpmc_##V##_subject& q,                     \
+                                                           const lfipc::bench::message& m) {           \
+        return q.try_push(m);                                                                          \
+    }                                                                                                  \
+    extern "C" [[gnu::noinline]] bool lfipc_mpmc_##V##_pop(mpmc_##V##_subject& q, lfipc::bench::message& m) { \
+        return q.try_pop(m);                                                                           \
+    }
+LFIPC_MPMC_SUBJECT(v1)
+LFIPC_MPMC_SUBJECT(v2)
 
 // Note 008, S5: the ring reached through a shared-memory segment.
 using shm_subject = lfipc::shm_spsc<lfipc::bench::message, 1024>;
@@ -76,6 +90,10 @@ int main(int argc, char** argv) {
         if (!lfipc_spsc_v1_push(*q1, m) || !lfipc_spsc_v1_pop(*q1, m)) return 1;
         if (!lfipc_spsc_v2_push(*q2, m) || !lfipc_spsc_v2_pop(*q2, m)) return 1;
         if (!lfipc_spsc_v3_push(*q3, m) || !lfipc_spsc_v3_pop(*q3, m)) return 1;
+        auto m1 = std::make_unique<mpmc_v1_subject>();
+        auto m2 = std::make_unique<mpmc_v2_subject>();
+        if (!lfipc_mpmc_v1_push(*m1, m) || !lfipc_mpmc_v1_pop(*m1, m)) return 1;
+        if (!lfipc_mpmc_v2_push(*m2, m) || !lfipc_mpmc_v2_pop(*m2, m)) return 1;
         std::string err;
         auto s = shm_subject::create("/lfipc-hot-path-" + std::to_string(::getpid()), 7, err);
         if (!s || !lfipc_spsc_shm_push(*s, m) || !lfipc_spsc_shm_pop(*s, m)) return 1;

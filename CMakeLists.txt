@@ -223,6 +223,10 @@ add_executable(placement_test tests/placement_test.cpp)
 target_link_libraries(placement_test PRIVATE lfipc Threads::Threads)
 add_test(NAME placement_test COMMAND placement_test)
 
+add_executable(mpmc_test tests/mpmc_test.cpp)
+target_link_libraries(mpmc_test PRIVATE lfipc Threads::Threads)
+add_test(NAME mpmc_test COMMAND mpmc_test)
+
 # Note 009: running anywhere. Checks that need a quiet, dedicated machine run
 # from the same executables started with "quiet", under the label `quiet`; CI
 # runs `ctest -LE quiet`. Tests that pin CPUs never overlap under `ctest -j`.

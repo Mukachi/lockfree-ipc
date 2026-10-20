@@ -20,6 +20,10 @@ SPSC S3 (note 006): try_push and try_pop make no call and contain no locked
 instruction, fence, or xchg with a memory operand (an implicit lock): on
 x86, release and acquire are plain moves.
 
+MPMC S3 (note 010): try_push and try_pop make no call and no fence; exactly
+one locked instruction, the cmpxchg that claims a position; no xchg with a
+memory operand.
+
 S6: in the overhead loop, every window from a start() read (rdtsc) to the
 next stop() read (rdtscp) holds only fences and register moves: no call,
 system call, division or floating-point conversion.
@@ -165,6 +169,19 @@ for n, ins in sorted(ops.items()):
                   or (m.rstrip("bwlq") == "xchg" and "(" in o)})
     check(not calls and not bad, f"SPSC S3 {n}: no call, lock, fence or xchg"
           + (f": found {calls + bad}" if calls or bad else ""))
+
+# MPMC S3
+ops = {n: ins for n, ins in funcs.items() if n.startswith("lfipc_mpmc_")}
+check(len(ops) >= 4, f"MPMC push and pop subjects found, v1 and v2 ({len(ops)})")
+for n, ins in sorted(ops.items()):
+    calls = sorted({o for m, o in ins if m == "call" or (m == "jmp" and "@plt" in o)})
+    locked = [ins[i + 1][0] for i, (m, _) in enumerate(ins) if m == "lock" and i + 1 < len(ins)]
+    bad = sorted({m for m, o in ins
+                  if m in FORBIDDEN - {"lock"} or m.rstrip("bwlq") in FORBIDDEN - {"lock"}
+                  or (m.rstrip("bwlq") == "xchg" and "(" in o)})
+    ok = not calls and not bad and len(locked) == 1 and locked[0].startswith("cmpxchg")
+    check(ok, f"MPMC S3 {n}: no call or fence, one locked instruction, the cmpxchg"
+          + ("" if ok else f": calls {calls}, fences/xchg {bad}, locked {locked}"))
 
 print("FAILED" if failures else "all passed")
 sys.exit(1 if failures else 0)
