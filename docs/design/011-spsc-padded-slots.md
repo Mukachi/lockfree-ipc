@@ -1,6 +1,6 @@
 # 011 — SPSC v4: padded slots
 
-**Status:** Built · **Updated:** 2026-10-20
+**Status:** Measured · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -67,8 +67,8 @@ of this is needed.
 
 - [x] `SlotAlign` in `spsc_ring`, v4 alias; S1–S3 tests and the hot-path subject
 - [x] v4 in `spsc_bench`, `queues.hpp` and `run.py`
-- [ ] Three bench-on runs; choice recorded here
-- [ ] If v4 is chosen: default, shared-memory header version 2, S5 test
+- [x] Three bench-on runs; choice recorded here
+- [x] If v4 is chosen: default, shared-memory header version 2, S5 test (not chosen: not needed)
 
 ## Review
 
@@ -77,3 +77,4 @@ of this is needed.
 | 2026-10-20 | Draft | Written for review |
 | 2026-10-20 | Agreed | Approved by Shep: v4 = v3 with each slot on its own 128 bytes via a `SlotAlign` parameter; whole SPSC set re-measured with v4, three runs; if chosen, the default and a shared-memory header version 2 with `slot_align`; earlier v3 figures stay labelled v3; no 64-byte variant unless the result calls for it |
 | 2026-10-20 | Built | `spsc_ring` gains `SlotAlign` (default 0): each slot is a `detail::spsc_slot<T, SlotAlign>`, packed it is just `T` (checked at compile time). v1–v3 compile to the same instructions as before (disassembly compared with addresses stripped). `spsc_v4 = spsc_ring<T, N, 128, true, 128>`: v3's code with the slot index shifted by 7 instead of 4. Tests: v4 passes note 006's tests (fill levels, the 2^64 wrap, 20M 8- and 64-byte messages across threads; 1M under TSan and ASan); size 256 + 128 per slot, v3's unchanged; S2 in the compiled code (`check_hot_path.py`, subjects `lfipc_spsc_v4_push/pop`). `spsc_bench` measures six queues; `run.py` lists v4 when a run has it, so the published v3 set still renders. Smoke run outside bench mode: v4 present in every block. Builds for aarch64 |
+| 2026-10-20 | Measured | Reviewed runs `results/spsc-dev-lnx01-20261020T175400Z.json`, `...181914Z.json`, `...184429Z.json` (commit bb35cba, clean, bench mode, memory bound to node 0, every queue on node 0, zero noise stops on CPUs 2, 3, 46, none out of order), published via `run.py report`; the SPSC and clock sets now come from them. **v4 does not win across the board; v3 stays the default.** Separate cores (2 → 3), one-way: a tie from 100k to 5M/s, every range overlapping (1M/s p50 162–190 against 168–190, p99.9 256–267 against 255–263); at 10M/s v4 wins clearly (p99 212–220 against 267–283, p99.9 250–257 against 312–336), the one rate where the producer runs close enough behind the consumer for neighbouring slots to matter. Round trip mixed, mostly overlapping; v4 somewhat worse at 1M/s (p99 411–429 against 398–410) and at 5M/s p99.99 (858–929 against 641–819). Hyper-thread siblings (2 → 46): v4 worse at every rate, one-way p50 +4–8 ns (1M/s 63–64 against 59–60), p99 up to +15 ns (92 against 77), round trip p99.9 +15–20 ns. The likely cause there is size, not sharing: siblings share one core's 32 KB L1; v3's 1,024-slot ring is 16 KB and fits, v4's is 128 KB and does not. As the Draft predicted, SPSC's consumer polls the counter, not the slots, so padding pays only at saturation, unlike MPMC (note 010), whose consumer polls the slot. v4 stays a measured variant, for a caller near 10M/s on separate cores; no shared-memory header change; the 64-byte variant is not needed (the result is footprint and saturation, not the prefetcher). Spec: S1–S4 pass; S5 does not apply |

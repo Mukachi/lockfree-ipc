@@ -7,6 +7,9 @@
 #
 # load, spsc and shm re-measured 2026-10-20 after the generator fix (the
 # consumer records apart from the producer; note 008, Review).
+#
+# spsc (and the clock taken from the same runs) re-measured 2026-10-20 with
+# v4 added (note 011).
 
 [noise]
 note = "005"
@@ -15,9 +18,9 @@ runs = ["noise-dev-lnx01-20261019T212615Z.json"]
 # The clock blocks of the published SPSC runs: the same conditions.
 [clock]
 note = "001"
-runs = ["spsc-dev-lnx01-20261020T092145Z.json",
-        "spsc-dev-lnx01-20261020T094245Z.json",
-        "spsc-dev-lnx01-20261020T100347Z.json"]
+runs = ["spsc-dev-lnx01-20261020T175400Z.json",
+        "spsc-dev-lnx01-20261020T181914Z.json",
+        "spsc-dev-lnx01-20261020T184429Z.json"]
 
 [histogram]
 note = "002"
@@ -33,9 +36,9 @@ runs = ["load-dev-lnx01-20261020T091650Z.json",
 
 [spsc]
 note = "006"
-runs = ["spsc-dev-lnx01-20261020T092145Z.json",
-        "spsc-dev-lnx01-20261020T094245Z.json",
-        "spsc-dev-lnx01-20261020T100347Z.json"]
+runs = ["spsc-dev-lnx01-20261020T175400Z.json",
+        "spsc-dev-lnx01-20261020T181914Z.json",
+        "spsc-dev-lnx01-20261020T184429Z.json"]
 
 [mpmc]
 note = "010"

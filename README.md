@@ -10,12 +10,12 @@ Work in progress. Written from scratch against public documentation.
 <!-- results:spsc-summary -->
 | Queue | Rate | p50 | p99 | p99.9 |
 |---|---|---|---|---|
-| **v3** | 1M/s | 162–184 | 214–265 | 244–307 |
-| **v3** | 2M/s | 169–184 | 214–249 | 241–260 |
-| moodycamel | 1M/s | 223–243 | 289–332 | 311–351 |
-| moodycamel | 2M/s | 223–298 | 286–345 | 309–366 |
-| Boost | 1M/s | 194–223 | 248–293 | 254–304 |
-| Boost | 2M/s | 196–224 | 233–256 | 251–288 |
+| **v3** | 1M/s | 162–190 | 226–251 | 256–267 |
+| **v3** | 2M/s | 160–168 | 246–257 | 259–297 |
+| moodycamel | 1M/s | 219–223 | 286–293 | 301–342 |
+| moodycamel | 2M/s | 218–225 | 284–289 | 303–340 |
+| Boost | 1M/s | 200–226 | 249–281 | 256–292 |
+| Boost | 2M/s | 189–223 | 253–278 | 261–295 |
 
 One-way latency in ns, CPUs 2 → 3 (separate cores), range over 3 runs. Full tables and conditions: [RESULTS.md](RESULTS.md).
 <!-- /results -->
