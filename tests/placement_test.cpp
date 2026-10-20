@@ -4,6 +4,8 @@
 #include <lfipc/bench/placement.hpp>
 
 #include <array>
+#include <cerrno>
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -36,6 +38,8 @@ int main() {
     check(cpu_node(cpu) >= 0, "a CPU's node is read from sysfs");
 
     auto here = make_on_cpu<block>(cpu);
+    if (here && node_of(here->data()) < 0)
+        std::printf("info  page query (move_pages) failed: %s\n", std::strerror(errno));
     check(here && node_of(here->data()) == cpu_node(cpu), "made on the test CPU: its pages are on that CPU's node");
     if (far < 0) {
         t::skip("pages placed on a far node; a queue there refuses the run", "no allowed CPU on another NUMA node");

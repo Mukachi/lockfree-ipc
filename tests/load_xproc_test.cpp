@@ -26,7 +26,7 @@ using namespace lfipc::bench;
 
 // Off the fence, lateness refusals are the machine's verdict, not ours (note 003).
 bool finished(const load_result& r) {
-    if (!r.ok && r.reason.rfind("producer lateness", 0) == 0) std::printf("info  refused: %s\n", r.reason.c_str());
+    if (!r.ok) std::printf("info  refused: %s\n", r.reason.c_str());
     return r.ok || r.reason.rfind("producer lateness", 0) == 0;
 }
 

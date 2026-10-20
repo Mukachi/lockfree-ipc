@@ -24,7 +24,7 @@ namespace t = lfipc::test;
 // The run finished and every message was handled. Refusal for lateness is a
 // verdict on the machine, not on correctness, so it counts as finished here.
 bool finished(const load_result& r) {
-    if (!r.ok && r.reason.rfind("producer lateness", 0) == 0) std::printf("info  refused: %s\n", r.reason.c_str());
+    if (!r.ok) std::printf("info  refused: %s\n", r.reason.c_str());
     return r.ok || r.reason.rfind("producer lateness", 0) == 0;
 }
 

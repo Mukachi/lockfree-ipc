@@ -103,6 +103,8 @@ int main(int argc, char** argv) {
         } else {
             measure_noise(0, 0.5, tpn, *r);
             const auto loc = r->interrupts.count("LOC") ? r->interrupts.at("LOC") : 0;
+            std::printf("info  /proc/interrupts: %zu rows for CPU 0\n",
+                        per_cpu_counts(detail::slurp("/proc/interrupts"), 0).size());
             std::printf("info  cpu 0, 0.5 s: %llu stops; LOC %llu; interrupt types %zu, softirq types %zu, "
                         "involuntary switches %ld\n",
                         (unsigned long long)r->stops, (unsigned long long)loc, r->interrupts.size(),
