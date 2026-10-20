@@ -5,9 +5,8 @@
 # Re-measured 2026-10-19 with memory bound to the measured node and placement
 # recorded (design note 008, Review); every earlier run is superseded.
 #
-# load, spsc and shm are held back: their thread-version runs share one
-# load_result between producer and consumer, whose histograms shared a cache
-# line (false sharing in the harness, note 008, Review). Re-measured next.
+# load, spsc and shm re-measured 2026-10-20 after the generator fix (the
+# consumer records apart from the producer; note 008, Review).
 
 [noise]
 note = "005"
@@ -16,12 +15,30 @@ runs = ["noise-dev-lnx01-20261019T212615Z.json"]
 # The clock blocks of the published SPSC runs: the same conditions.
 [clock]
 note = "001"
-runs = ["spsc-dev-lnx01-20261019T220459Z.json",
-        "spsc-dev-lnx01-20261019T222622Z.json",
-        "spsc-dev-lnx01-20261019T224745Z.json"]
+runs = ["spsc-dev-lnx01-20261020T092145Z.json",
+        "spsc-dev-lnx01-20261020T094245Z.json",
+        "spsc-dev-lnx01-20261020T100347Z.json"]
 
 [histogram]
 note = "002"
 runs = ["histogram-dev-lnx01-20261019T215941Z.json",
         "histogram-dev-lnx01-20261019T215949Z.json",
         "histogram-dev-lnx01-20261019T215956Z.json"]
+
+[load]
+note = "003"
+runs = ["load-dev-lnx01-20261020T091650Z.json",
+        "load-dev-lnx01-20261020T091829Z.json",
+        "load-dev-lnx01-20261020T092007Z.json"]
+
+[spsc]
+note = "006"
+runs = ["spsc-dev-lnx01-20261020T092145Z.json",
+        "spsc-dev-lnx01-20261020T094245Z.json",
+        "spsc-dev-lnx01-20261020T100347Z.json"]
+
+[shm]
+note = "008"
+runs = ["shm-dev-lnx01-20261020T102449Z.json",
+        "shm-dev-lnx01-20261020T103309Z.json",
+        "shm-dev-lnx01-20261020T104128Z.json"]

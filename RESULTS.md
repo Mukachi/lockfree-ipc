@@ -9,8 +9,11 @@ HP ProLiant DL380 Gen9, BIOS P89 (08/29/2024); 2 × Intel(R) Xeon(R) CPU E5-2699
 | Set | Runs | First run | Commit | Governor | Idle states enabled | Turbo | NUMA balancing | Boot isolation | Reserved CPUs |
 |---|---|---|---|---|---|---|---|---|---|
 | noise (note 005) | 1 | 2026-10-19 21:26 UTC | ffdd355 | performance | POLL | on | off | yes | 2-21,46-65 |
-| clock (note 001) | 3 | 2026-10-19 22:04 UTC | ffdd355 | performance | POLL | on | off | yes | 2-21,46-65 |
+| clock (note 001) | 3 | 2026-10-20 09:21 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
 | histogram (note 002) | 3 | 2026-10-19 21:59 UTC | ffdd355 | performance | POLL | on | off | yes | 2-21,46-65 |
+| load (note 003) | 3 | 2026-10-20 09:16 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
+| spsc (note 006) | 3 | 2026-10-20 09:21 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
+| shm (note 008) | 3 | 2026-10-20 10:24 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
 
 Every run met note 004's bench-mode conditions (each file's `environment.bench_mode`, checked before use) and was built clean; compiler and flags are in each file's `environment.build`. Ranges are min–max over a set's runs.
 
@@ -26,7 +29,7 @@ CPUs 2-21,46-65, 10 s each, 5 repeats (2,000 CPU-seconds); a stop is a gap over 
 
 | TSC ticks per ns | Calibration spread | Overhead CPU | Samples | Warm-up discarded |
 |---|---|---|---|---|
-| 2.1974560 | 0.02–0.06 ppm | 2 | 1,000,000 | 100,000 |
+| 2.1974560 | 0.03 ppm | 2 | 1,000,000 | 100,000 |
 
 Cost of a `start()`/`stop()` pair:
 
@@ -34,7 +37,7 @@ Cost of a `start()`/`stop()` pair:
 |---|---|---|---|
 | 21 | 23 | 24 | 26–27 |
 
-Cross-CPU agreement, CPU 0 against every other CPU (87 pairs per run): no pair proves disagreement; hyper-thread sibling (CPU 44) offset within -23 to 23 ns; unconverged pairs per run 0.
+Cross-CPU agreement, CPU 0 against every other CPU (87 pairs per run): no pair proves disagreement; hyper-thread sibling (CPU 44) offset within -23 to 23 ns; unconverged pairs per run 0–2.
 
 ## Histogram record cost (note 002)
 
@@ -46,3 +49,213 @@ Cross-CPU agreement, CPU 0 against every other CPU (87 pairs per run): no pair p
 | hot | always 300 ticks | 25 | 27 | 29 | 31–117 |
 | realistic | lognormal, median 900 ticks, sigma 0.3 | 25 | 27 | 37 | 69–122 |
 | worst | uniform over 0 to 2^40 ticks | 25 | 29 | 46 | 67–175 |
+
+## Mailbox load (note 003)
+
+one-slot mailbox (tests/test_suts.hpp), CPUs 2 → 3; open-loop, latency from each message's intended send time; one-way and round trip in separate runs. Offset bound for the pair: -97–-84 to 97–108 ns.
+
+One-way:
+
+| Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|
+| 100k/s | 3/3 | 193–201 | 206–215 | 209–219 | 213–223 |
+| 250k/s | 3/3 | 192–200 | 205–214 | 208–218 | 211–222 |
+| 500k/s | 3/3 | 184–193 | 206–213 | 209–218 | 213–221 |
+| 1M/s | 3/3 | 180–187 | 201–209 | 205–214 | 208–218 |
+
+Round trip:
+
+| Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|
+| 100k/s | 3/3 | 372–401 | 397–425 | 401–432 | 405–437 |
+| 250k/s | 3/3 | 369–401 | 396–425 | 400–431 | 403–437 |
+| 500k/s | 3/3 | 369–400 | 396–425 | 400–432 | 403–438 |
+| 1M/s | 3/3 | 341–360 | 359–398 | 365–407 | 373–415 |
+
+## SPSC queues (note 006)
+
+Capacity 1024, 16-byte messages, 10 s per rate, warm-up 10% and at least 100 ms discarded; baselines moodycamel v1.0.7 (8b21766), Boost 1.92.0. v1: Lamport's ring; v2: + cached counters; v3 (the chosen queue, `spsc_ring`'s default): + 128-byte separation. A refused rate is one the open-loop generator could not sustain.
+
+### 2 → 3 (different cores, same socket), one-way
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 228–251 | 255–328 | 262–337 | 287–343 |
+| v1 | 1M/s | 3/3 | 217–228 | 245–274 | 254–293 | 277–303 |
+| v1 | 2M/s | 3/3 | 213–220 | 244–316 | 253–327 | 281–334 |
+| v1 | 5M/s | 3/3 | 199–214 | 259–311 | 295–344 | 328–380 |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| v2 | 100k/s | 3/3 | 208–240 | 279–319 | 300–329 | 324–342 |
+| v2 | 1M/s | 3/3 | 228–235 | 314–321 | 325–329 | 332–338 |
+| v2 | 2M/s | 3/3 | 209–228 | 265–318 | 280–329 | 299–338 |
+| v2 | 5M/s | 3/3 | 192–216 | 264–304 | 287–323 | 313–339 |
+| v2 | 10M/s | 1/3 | 191 | 321 | 360 | 402 |
+| **v3** | 100k/s | 3/3 | 172–189 | 243–257 | 267–282 | 291–313 |
+| **v3** | 1M/s | 3/3 | 162–184 | 214–265 | 244–307 | 279–320 |
+| **v3** | 2M/s | 3/3 | 169–184 | 214–249 | 241–260 | 269–281 |
+| **v3** | 5M/s | 3/3 | 162–169 | 208–246 | 250–261 | 271–279 |
+| **v3** | 10M/s | 3/3 | 139–198 | 268–352 | 297–418 | 331–480 |
+| moodycamel | 100k/s | 3/3 | 230–261 | 291–333 | 315–354 | 351–370 |
+| moodycamel | 1M/s | 3/3 | 223–243 | 289–332 | 311–351 | 358–364 |
+| moodycamel | 2M/s | 3/3 | 223–298 | 286–345 | 309–366 | 353–385 |
+| moodycamel | 5M/s | 3/3 | 203–219 | 284–334 | 319–357 | 361–375 |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 202–228 | 248–284 | 254–318 | 258–326 |
+| Boost | 1M/s | 3/3 | 194–223 | 248–293 | 254–304 | 260–310 |
+| Boost | 2M/s | 3/3 | 196–224 | 233–256 | 251–288 | 261–298 |
+| Boost | 5M/s | 3/3 | 190–192 | 236–278 | 255–294 | 298–306 |
+| Boost | 10M/s | 3/3 | 176–178 | 300–314 | 355–385 | 402–469 |
+
+### 2 → 3 (different cores, same socket), round trip
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 430–444 | 463–542 | 507–562 | 552–597 |
+| v1 | 1M/s | 3/3 | 410–424 | 453–478 | 468–496 | 504–532 |
+| v1 | 2M/s | 3/3 | 420–425 | 467–572 | 495–727 | 516–758 |
+| v1 | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| v2 | 100k/s | 3/3 | 521–547 | 586–621 | 600–632 | 617–643 |
+| v2 | 1M/s | 3/3 | 396–425 | 497–571 | 528–593 | 543–607 |
+| v2 | 2M/s | 3/3 | 407–417 | 527–544 | 570–605 | 632–689 |
+| v2 | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| v2 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| **v3** | 100k/s | 3/3 | 308–328 | 408–437 | 456–484 | 488–517 |
+| **v3** | 1M/s | 3/3 | 303–327 | 387–439 | 464–507 | 501–629 |
+| **v3** | 2M/s | 3/3 | 299–313 | 395–406 | 437–469 | 477–505 |
+| **v3** | 5M/s | 2/3 | 341–355 | 484–537 | 580–604 | 637–740 |
+| **v3** | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 100k/s | 3/3 | 466–509 | 587–608 | 618–639 | 647–667 |
+| moodycamel | 1M/s | 3/3 | 458–505 | 583–604 | 615–635 | 646–666 |
+| moodycamel | 2M/s | 3/3 | 466–535 | 670–709 | 742–760 | 772–807 |
+| moodycamel | 5M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 376–425 | 490–497 | 522–523 | 537–569 |
+| Boost | 1M/s | 3/3 | 378–426 | 476–502 | 497–539 | 519–560 |
+| Boost | 2M/s | 3/3 | 377–386 | 446–494 | 463–527 | 501–557 |
+| Boost | 5M/s | 3/3 | 395–434 | 589–618 | 630–658 | 669–748 |
+| Boost | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+### 2 → 46 (hyper-thread siblings), one-way
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 62–64 | 89–92 | 92–96 | 94–100 |
+| v1 | 1M/s | 3/3 | 55–59 | 90–91 | 92 | 94–95 |
+| v1 | 2M/s | 3/3 | 57–59 | 90–91 | 92–93 | 95 |
+| v1 | 5M/s | 3/3 | 58–59 | 84–85 | 91–92 | 95 |
+| v1 | 10M/s | 3/3 | 61–63 | 84 | 91–92 | 96–98 |
+| v2 | 100k/s | 3/3 | 65–67 | 89–93 | 96–97 | 105–106 |
+| v2 | 1M/s | 3/3 | 59–61 | 76–81 | 89–90 | 93–94 |
+| v2 | 2M/s | 3/3 | 56–58 | 79–85 | 88–93 | 94–96 |
+| v2 | 5M/s | 3/3 | 57–58 | 86 | 95 | 98–99 |
+| v2 | 10M/s | 3/3 | 56–57 | 86 | 94–95 | 98–100 |
+| **v3** | 100k/s | 3/3 | 65–67 | 87–94 | 96–98 | 103–105 |
+| **v3** | 1M/s | 3/3 | 58–61 | 76–81 | 87–91 | 94 |
+| **v3** | 2M/s | 3/3 | 57–60 | 77–85 | 87–95 | 94–98 |
+| **v3** | 5M/s | 3/3 | 59 | 86–87 | 92–93 | 96 |
+| **v3** | 10M/s | 3/3 | 57–58 | 86–87 | 95 | 99–100 |
+| moodycamel | 100k/s | 3/3 | 72–79 | 84–91 | 92–98 | 100–104 |
+| moodycamel | 1M/s | 3/3 | 63–64 | 74–82 | 84–86 | 86–90 |
+| moodycamel | 2M/s | 3/3 | 65 | 86 | 88–89 | 96–98 |
+| moodycamel | 5M/s | 3/3 | 56–57 | 78 | 84 | 90–92 |
+| moodycamel | 10M/s | 3/3 | 48 | 83 | 92 | 97 |
+| Boost | 100k/s | 3/3 | 59–61 | 72–81 | 91–93 | 114–118 |
+| Boost | 1M/s | 3/3 | 55–56 | 71–78 | 89–90 | 114–117 |
+| Boost | 2M/s | 3/3 | 52–56 | 75–78 | 89–91 | 114–117 |
+| Boost | 5M/s | 3/3 | 52–54 | 75–77 | 87–89 | 111–114 |
+| Boost | 10M/s | 3/3 | 53–55 | 75–76 | 89–92 | 113–117 |
+
+### 2 → 46 (hyper-thread siblings), round trip
+
+| Queue | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| v1 | 100k/s | 3/3 | 119–123 | 156–159 | 163–167 | 167–172 |
+| v1 | 1M/s | 3/3 | 114–121 | 150–157 | 156–163 | 159–169 |
+| v1 | 2M/s | 3/3 | 114–116 | 147–151 | 162–164 | 167–168 |
+| v1 | 5M/s | 3/3 | 111–116 | 142–150 | 155–162 | 169–174 |
+| v1 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| v2 | 100k/s | 3/3 | 122–126 | 162–165 | 167–173 | 176–178 |
+| v2 | 1M/s | 3/3 | 122–126 | 163–165 | 169–177 | 176–184 |
+| v2 | 2M/s | 3/3 | 117–120 | 156–162 | 165–174 | 171–181 |
+| v2 | 5M/s | 3/3 | 115–118 | 149–153 | 161–168 | 172–178 |
+| v2 | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| **v3** | 100k/s | 3/3 | 122–125 | 163–167 | 170–174 | 177–179 |
+| **v3** | 1M/s | 3/3 | 122–126 | 163–167 | 169–177 | 180–184 |
+| **v3** | 2M/s | 3/3 | 116–120 | 155–161 | 166–172 | 175–179 |
+| **v3** | 5M/s | 3/3 | 115–118 | 151–156 | 161–169 | 171–176 |
+| **v3** | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| moodycamel | 100k/s | 3/3 | 132–135 | 177–181 | 181–187 | 190–201 |
+| moodycamel | 1M/s | 3/3 | 124–128 | 145–152 | 169–172 | 176–181 |
+| moodycamel | 2M/s | 3/3 | 121–126 | 146–150 | 164–174 | 175–181 |
+| moodycamel | 5M/s | 3/3 | 118–121 | 147–156 | 158–166 | 175–177 |
+| moodycamel | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| Boost | 100k/s | 3/3 | 120–124 | 135–142 | 164–174 | 198–228 |
+| Boost | 1M/s | 3/3 | 116–119 | 134–140 | 167–171 | 210–215 |
+| Boost | 2M/s | 3/3 | 115–118 | 135–140 | 163–165 | 194–213 |
+| Boost | 5M/s | 3/3 | 110–116 | 139–141 | 168–171 | 199–219 |
+| Boost | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+## Shared-memory transport (note 008)
+
+v3 between two processes (a `shm_open` segment; the consumer is a forked process that attaches by name) against v3 between two threads, measured back to back in the same run. Capacity 1024, 16-byte messages, 10 s per rate.
+
+### 2 → 3 (different cores, same socket), one-way
+
+| Transport | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| threads | 100k/s | 3/3 | 175–190 | 223–257 | 255–268 | 287–291 |
+| threads | 1M/s | 3/3 | 163–187 | 217–265 | 262–305 | 279–323 |
+| threads | 2M/s | 3/3 | 157–189 | 216–259 | 251–304 | 266–316 |
+| threads | 5M/s | 3/3 | 152–168 | 208–255 | 247–298 | 270–339 |
+| threads | 10M/s | 3/3 | 141–148 | 268–281 | 293–338 | 338–389 |
+| processes | 100k/s | 3/3 | 182–208 | 232–263 | 260–272 | 285–397 |
+| processes | 1M/s | 3/3 | 180–198 | 212–237 | 252–272 | 281–289 |
+| processes | 2M/s | 3/3 | 167–192 | 220–250 | 230–261 | 256–275 |
+| processes | 5M/s | 3/3 | 161–187 | 206–247 | 257–275 | 273–319 |
+| processes | 10M/s | 3/3 | 139–145 | 269–333 | 301–380 | 349–441 |
+
+### 2 → 3 (different cores, same socket), round trip
+
+| Transport | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| threads | 100k/s | 3/3 | 300–327 | 425–458 | 487–517 | 523–538 |
+| threads | 1M/s | 3/3 | 304–323 | 410–438 | 450–508 | 499–565 |
+| threads | 2M/s | 3/3 | 296–322 | 406–412 | 435–501 | 455–528 |
+| threads | 5M/s | 3/3 | 340–344 | 484–554 | 567–732 | 643–866 |
+| threads | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| processes | 100k/s | 3/3 | 329–334 | 403–425 | 435–460 | 535–689 |
+| processes | 1M/s | 3/3 | 325–331 | 411–429 | 446–466 | 481–496 |
+| processes | 2M/s | 3/3 | 319–329 | 410–418 | 441–443 | 469–486 |
+| processes | 5M/s | 2/3 | 357–358 | 537–549 | 600–606 | 656–669 |
+| processes | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+### 2 → 46 (hyper-thread siblings), one-way
+
+| Transport | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| threads | 100k/s | 3/3 | 65–66 | 79–88 | 92–96 | 98–106 |
+| threads | 1M/s | 3/3 | 58 | 76 | 90–91 | 94–96 |
+| threads | 2M/s | 3/3 | 56–57 | 76 | 86–87 | 94 |
+| threads | 5M/s | 3/3 | 56 | 90 | 96 | 99 |
+| threads | 10M/s | 3/3 | 57 | 85 | 95 | 99 |
+| processes | 100k/s | 3/3 | 75–83 | 94–105 | 98–108 | 110 |
+| processes | 1M/s | 3/3 | 65–68 | 83–91 | 90–95 | 92–101 |
+| processes | 2M/s | 3/3 | 64–66 | 86–90 | 92–96 | 96–101 |
+| processes | 5M/s | 3/3 | 56–58 | 78–82 | 88–94 | 96–104 |
+| processes | 10M/s | 3/3 | 60–61 | 81 | 88–92 | 97–101 |
+
+### 2 → 46 (hyper-thread siblings), round trip
+
+| Transport | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| threads | 100k/s | 3/3 | 122–124 | 161–166 | 167–172 | 174–177 |
+| threads | 1M/s | 3/3 | 122–124 | 163–168 | 169–174 | 177–183 |
+| threads | 2M/s | 3/3 | 116–118 | 156–162 | 165–172 | 173–180 |
+| threads | 5M/s | 3/3 | 114–116 | 152–156 | 162–167 | 170–176 |
+| threads | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+| processes | 100k/s | 3/3 | 142–143 | 172–195 | 196–207 | 207–213 |
+| processes | 1M/s | 3/3 | 141–142 | 162–165 | 188–195 | 203–213 |
+| processes | 2M/s | 3/3 | 135–137 | 160 | 171–192 | 195–200 |
+| processes | 5M/s | 3/3 | 131–132 | 163–168 | 171–177 | 181–198 |
+| processes | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
