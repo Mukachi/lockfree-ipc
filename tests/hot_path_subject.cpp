@@ -2,13 +2,15 @@
 // overhead loop sits behind a fixed, unmangled symbol (S6); the cross-CPU
 // threads are found by their lambda names (S8). The histogram's record() sits
 // behind its own symbol (note 002, S1). The load generator's threads are found
-// by their lambda names inside run_load_impl, run with the test mailbox (note 003, S6).
+// by their lambda names inside run_load_impl, run with the test mailbox (note 003, S6), and
+// inside run_load_mp, run with the MPMC ring (note 010).
 // SPSC try_push/try_pop sit behind lfipc_spsc_<variant>_<op> (note 006, S3), MPMC's behind
 // lfipc_mpmc_<variant>_<op> (note 010, S3). Counts come from the command
 // line so the compiler cannot specialise the loops. Spec: docs/design/001-clock.md
 #include <lfipc/bench/cross_cpu.hpp>
 #include <lfipc/bench/histogram.hpp>
 #include <lfipc/bench/load.hpp>
+#include <lfipc/bench/load_mp.hpp>
 #include <lfipc/bench/noise.hpp>
 #include <lfipc/mpmc.hpp>
 #include <lfipc/shm.hpp>
@@ -76,6 +78,23 @@ int main(int argc, char** argv) {
         lfipc::test::plain out, back;
         lfipc::bench::run_load(out, c, *r);
         lfipc::bench::run_load(out, back, c, *r);
+    }
+    {
+        // The generator for several producers and consumers (note 010).
+        struct mpmc_sut {
+            lfipc::mpmc_v1<lfipc::bench::message, 1024> q;
+            bool send(const lfipc::bench::message& m) { return q.try_push(m); }
+            bool try_receive(lfipc::bench::message& m) { return q.try_pop(m); }
+        };
+        lfipc::bench::mp_load_config c;
+        c.ticks_per_ns = 2.2;
+        c.messages = 1'000;
+        c.rate_per_s = 1e5;
+        c.producer_cpus = {0, 1};
+        c.consumer_cpus = {0};
+        auto sut = std::make_unique<mpmc_sut>();
+        auto r = std::make_unique<lfipc::bench::mp_load_result>();
+        lfipc::bench::run_load_mp(*sut, c, *r);
     }
     {
         // The noise spinner's loop (note 005, S5), default hook.

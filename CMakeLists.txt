@@ -227,6 +227,10 @@ add_executable(mpmc_test tests/mpmc_test.cpp)
 target_link_libraries(mpmc_test PRIVATE lfipc Threads::Threads)
 add_test(NAME mpmc_test COMMAND mpmc_test)
 
+add_executable(load_mp_test tests/load_mp_test.cpp)
+target_link_libraries(load_mp_test PRIVATE lfipc Threads::Threads)
+add_test(NAME load_mp_test COMMAND load_mp_test)
+
 # Note 009: running anywhere. Checks that need a quiet, dedicated machine run
 # from the same executables started with "quiet", under the label `quiet`; CI
 # runs `ctest -LE quiet`. Tests that pin CPUs never overlap under `ctest -j`.
@@ -236,6 +240,6 @@ foreach(t noise_test clock_block_test cross_cpu_test)
 endforeach()
 set_tests_properties(clock_block_test clock_block_test_quiet cross_cpu_test cross_cpu_test_quiet overhead_test
                      record_cost_test load_test load_xproc_test noise_test noise_test_quiet noise_block_test
-                     placement_test
+                     placement_test load_mp_test
                      PROPERTIES RESOURCE_LOCK cpu)
 set_tests_properties(load_test load_xproc_test PROPERTIES SKIP_RETURN_CODE 77)

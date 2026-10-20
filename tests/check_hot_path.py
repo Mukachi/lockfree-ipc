@@ -8,7 +8,8 @@ cannot allocate or enter the kernel, and exactly one conditional branch (the
 overflow check), as the note's Design states.
 
 Load S6 (note 003): each generator thread body (the run_load_impl lambdas'
-_M_run, one-way and echo variants) calls only sched_setaffinity, for pinning
+_M_run, one-way and echo variants, and run_load_mp's for several producers
+and consumers, note 010) calls only sched_setaffinity, for pinning
 before its loop, the producer's fill_schedule (its schedule, filled on its own
 NUMA node before the run), and __stack_chk_fail, the stack protector's abort. The SUT,
 the histogram and the clock reads are all inlined into the loops.
@@ -139,10 +140,12 @@ ALLOWED_CALLS = {"sched_setaffinity@plt", "__stack_chk_fail@plt"}
 # The producer fills its schedule after pinning, before reporting ready
 # (first touch on its own NUMA node): one named setup call, outside the loop.
 ALLOWED_SETUP = "fill_schedule"
-bodies = {n: ins for n, ins in funcs.items() if "run_load_impl" in n and "lambda" in n and "_M_run" in n}
-check(len(bodies) >= 4, f"load generator thread bodies found, both variants ({len(bodies)})")
+bodies = {n: ins for n, ins in funcs.items()
+          if ("run_load_impl" in n or "run_load_mp" in n) and "lambda" in n and "_M_run" in n}
+check(len(bodies) >= 6, f"load generator thread bodies found, all variants ({len(bodies)})")
 for n, ins in sorted(bodies.items()):
-    who = ("echo " if "run_load_impl<true" in n else "one-way ") + re.search(r"lambda\(\)#\d+", n)[0]
+    kind = "several " if "run_load_mp" in n else "echo " if "run_load_impl<true" in n else "one-way "
+    who = kind + re.search(r"lambda\(\)#\d+", n)[0]
     targets = {re.search(r"<([^>]*)>", o)[1] for m, o in ins
                if (m == "call" or (m == "jmp" and "@plt" in o)) and "<" in o}
     extra = sorted(t for t in targets - ALLOWED_CALLS if ALLOWED_SETUP not in t)

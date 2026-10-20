@@ -162,10 +162,12 @@ template <bool Echo, load_sut Sut, load_sut Back>
 // records arrival - intended: a round trip on one CPU's TSC. `abort` is read
 // only when a send is refused or no echo is waiting, never on the timed path:
 // it stops a producer whose consumer has gone (a process that died, note 008).
+// `tag` is OR'd into every sequence number: with several producers, each one's
+// index in the top bits (note 010); 0, and folded away, with one.
 template <bool Echo, load_sut Sut, load_sut Back>
 [[gnu::always_inline]] inline void producer_loop(Sut& sut, Back& back, load_result& r, load_sync& sync,
                                                  const std::vector<ticks>& offset, ticks base, std::size_t warm,
-                                                 std::size_t n) {
+                                                 std::size_t n, std::uint64_t tag = 0) {
     std::uint64_t echoes = 0;
     // Take one echo if there is one. Called while waiting, so the consumer
     // is never stuck sending back into a full return path.
@@ -182,7 +184,7 @@ template <bool Echo, load_sut Sut, load_sut Back>
         while (start() < due) {
             if (!Echo || !poll()) detail::cpu_relax();
         }
-        while (!sut.send(message{i, due})) {
+        while (!sut.send(message{tag | i, due})) {
             if (!Echo || !poll()) {
                 if (sync.abort.load(std::memory_order_relaxed)) return;
                 detail::cpu_relax();
@@ -201,10 +203,11 @@ template <bool Echo, load_sut Sut, load_sut Back>
     }
 }
 
-// Waits for both sides, then starts the schedule 1 ms from now, so both are
-// spinning on it first; or aborts if either could not pin.
-inline void start_schedule(load_sync& sync, double ticks_per_ns) {
-    while (sync.ready.load(std::memory_order_acquire) < 2) detail::cpu_relax();
+// Waits for every thread (producer and consumer, or `parties` of them), then
+// starts the schedule 1 ms from now, so all are spinning on it first; or
+// aborts if any could not pin.
+inline void start_schedule(load_sync& sync, double ticks_per_ns, int parties = 2) {
+    while (sync.ready.load(std::memory_order_acquire) < parties) detail::cpu_relax();
     if (sync.failed.load()) sync.abort.store(true);
     sync.t0.store(start() + static_cast<ticks>(ticks_per_ns * 1e6), std::memory_order_release);
 }
