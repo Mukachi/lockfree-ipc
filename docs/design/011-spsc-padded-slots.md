@@ -1,6 +1,6 @@
 # 011 — SPSC v4: padded slots
 
-**Status:** Agreed · **Updated:** 2026-10-20
+**Status:** Built · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -65,8 +65,8 @@ of this is needed.
 
 ## Tasks
 
-- [ ] `SlotAlign` in `spsc_ring`, v4 alias; S1–S3 tests and the hot-path subject
-- [ ] v4 in `spsc_bench`, `queues.hpp` and `run.py`
+- [x] `SlotAlign` in `spsc_ring`, v4 alias; S1–S3 tests and the hot-path subject
+- [x] v4 in `spsc_bench`, `queues.hpp` and `run.py`
 - [ ] Three bench-on runs; choice recorded here
 - [ ] If v4 is chosen: default, shared-memory header version 2, S5 test
 
@@ -76,3 +76,4 @@ of this is needed.
 |---|---|---|
 | 2026-10-20 | Draft | Written for review |
 | 2026-10-20 | Agreed | Approved by Shep: v4 = v3 with each slot on its own 128 bytes via a `SlotAlign` parameter; whole SPSC set re-measured with v4, three runs; if chosen, the default and a shared-memory header version 2 with `slot_align`; earlier v3 figures stay labelled v3; no 64-byte variant unless the result calls for it |
+| 2026-10-20 | Built | `spsc_ring` gains `SlotAlign` (default 0): each slot is a `detail::spsc_slot<T, SlotAlign>`, packed it is just `T` (checked at compile time). v1–v3 compile to the same instructions as before (disassembly compared with addresses stripped). `spsc_v4 = spsc_ring<T, N, 128, true, 128>`: v3's code with the slot index shifted by 7 instead of 4. Tests: v4 passes note 006's tests (fill levels, the 2^64 wrap, 20M 8- and 64-byte messages across threads; 1M under TSan and ASan); size 256 + 128 per slot, v3's unchanged; S2 in the compiled code (`check_hot_path.py`, subjects `lfipc_spsc_v4_push/pop`). `spsc_bench` measures six queues; `run.py` lists v4 when a run has it, so the published v3 set still renders. Smoke run outside bench mode: v4 present in every block. Builds for aarch64 |

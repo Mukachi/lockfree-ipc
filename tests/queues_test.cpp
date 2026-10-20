@@ -61,6 +61,7 @@ int main() {
     through<ring_sut<lfipc::spsc_v1>>("spsc v1", queue_capacity);
     through<ring_sut<lfipc::spsc_v2>>("spsc v2", queue_capacity);
     through<ring_sut<lfipc::spsc_v3>>("spsc v3", queue_capacity);
+    through<ring_sut<lfipc::spsc_v4>>("spsc v4", queue_capacity);
 #if LFIPC_HAVE_BASELINES
     // moodycamel rounds its storage up, so it may hold more than asked.
     {

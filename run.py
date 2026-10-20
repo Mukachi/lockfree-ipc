@@ -23,8 +23,9 @@ from pathlib import Path
 SETS = ("noise", "clock", "histogram", "load", "spsc", "shm", "mpmc")
 BLOCK = re.compile(r"(<!-- results:(?P<name>[a-z0-9-]+) -->\n)(?P<body>.*?)(<!-- /results -->)", re.S)
 MEAN = re.compile(r"\b(mean|average|avg)\b", re.I)
-QUEUES = ("spsc_v1", "spsc_v2", "spsc_v3", "moodycamel", "boost")
-QUEUE_LABEL = {"spsc_v1": "v1", "spsc_v2": "v2", "spsc_v3": "**v3**", "moodycamel": "moodycamel", "boost": "Boost"}
+QUEUES = ("spsc_v1", "spsc_v2", "spsc_v3", "spsc_v4", "moodycamel", "boost")
+QUEUE_LABEL = {"spsc_v1": "v1", "spsc_v2": "v2", "spsc_v3": "**v3**", "spsc_v4": "v4", "moodycamel": "moodycamel",
+               "boost": "Boost"}
 MPMC_QUEUES = ("mpmc_v1", "mpmc_v2", "moodycamel", "boost", "rigtorp", "spsc_v3")
 MPMC_LABEL = {"mpmc_v1": "v1", "mpmc_v2": "**v2**", "moodycamel": "moodycamel", "boost": "Boost", "rigtorp": "rigtorp",
               "spsc_v3": "SPSC v3 (reference)"}
@@ -302,17 +303,19 @@ def spsc_block(runs, pair, queue, mode):
 def spsc_section(note, runs):
     s = runs[0][1]["spsc"]
     pairs = [(p["producer_cpu"], p["consumer_cpu"]) for p in s["pairs"]]
+    present = [q for q in QUEUES if q in s["pairs"][0]["queues"]]  # v4 from note 011 on
+    v4 = "; v4: + each slot on its own 128 bytes (note 011)" if "spsc_v4" in present else ""
     out = [f"## SPSC queues (note {note})", "",
            f"Capacity {s['capacity']}, {s['message_bytes']}-byte messages, {s['seconds_per_rate']:g} s per rate, "
            f"warm-up 10% and at least 100 ms discarded; baselines moodycamel {s['baselines']['moodycamel']}, "
            f"Boost {s['baselines']['boost']}. v1: Lamport's ring; v2: + cached counters; v3 (the chosen "
-           f"queue, `spsc_ring`'s default): + 128-byte separation. A refused rate is one the open-loop "
+           f"queue, `spsc_ring`'s default): + 128-byte separation{v4}. A refused rate is one the open-loop "
            f"generator could not sustain.", ""]
     for pair in pairs:
         where = "hyper-thread siblings" if pair[1] - pair[0] == 44 else "different cores, same socket"
         for mode, title in (("one_way", "one-way"), ("round_trip", "round trip")):
             rows = []
-            for q in QUEUES:
+            for q in present:
                 for r in load_rows(spsc_block(runs, pair, q, mode), mode, len(runs)):
                     rows.append([QUEUE_LABEL[q]] + r)
             out += [f"### {pair[0]} → {pair[1]} ({where}), {title}", "",

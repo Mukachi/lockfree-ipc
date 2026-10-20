@@ -1,4 +1,5 @@
 // Tests for include/lfipc/spsc.hpp. Spec: docs/design/006-spsc-queue.md
+#include <lfipc/bench/load.hpp>  // message
 #include <lfipc/spsc.hpp>
 
 #include <cstdint>
@@ -138,6 +139,13 @@ int main() {
     all<lfipc::spsc_v1>("v1");
     all<lfipc::spsc_v2>("v2");
     all<lfipc::spsc_v3>("v3");
+    all<lfipc::spsc_v4>("v4");
+
+    // S3 (note 011): v4's size is the counters' 256 bytes plus 128 per slot;
+    // v3's slots stay packed.
+    static_assert(sizeof(lfipc::spsc_v4<lfipc::bench::message, 1024>) == 256 + 1024 * 128);
+    static_assert(sizeof(lfipc::spsc_v3<lfipc::bench::message, 1024>) == 256 + 1024 * 16);
+    check(true, "v4: 128 bytes per slot; v3 packed, unchanged");
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
 }

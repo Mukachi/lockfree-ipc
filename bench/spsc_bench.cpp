@@ -1,10 +1,10 @@
-// Every SPSC queue (note 006) through the open-loop generator (note 003), one-way
+// Every SPSC queue (notes 006 and 011) through the open-loop generator (note 003), one-way
 // and round trip, at a sweep of rates on two CPU pairs; and the run JSON.
 // Design: docs/design/006-spsc-queue.md
 //
 // Usage: spsc_bench [output.json [seconds_per_rate]]
 // Default output: results/spsc-<host>-<UTC time>.json; 10 s per rate.
-// For each pair and rate the five queues run back to back, so queues compared
+// For each pair and rate the six queues run back to back, so queues compared
 // at one rate are measured close together in time. Each queue runs each rate
 // twice: one-way only (its one-way figures) and with echo (its round trip),
 // since echo traffic inflates the one-way figure (note 003, amended). A refused
@@ -57,6 +57,7 @@ const queue_entry queues[] = {
     {"spsc_v1", "lfipc spsc v1: Lamport ring, counters on separate 64-byte lines", run_queue<ring_sut<lfipc::spsc_v1>>},
     {"spsc_v2", "lfipc spsc v2: v1 plus cached counters", run_queue<ring_sut<lfipc::spsc_v2>>},
     {"spsc_v3", "lfipc spsc v3: v2 with 128-byte separation", run_queue<ring_sut<lfipc::spsc_v3>>},
+    {"spsc_v4", "lfipc spsc v4: v3 with each slot on its own 128 bytes", run_queue<ring_sut<lfipc::spsc_v4>>},
     {"moodycamel", "moodycamel::ReaderWriterQueue " LFIPC_RWQ_VERSION, run_queue<moodycamel_sut>},
     {"boost", "boost::lockfree::spsc_queue " LFIPC_BOOST_VERSION, run_queue<boost_sut>},
 };

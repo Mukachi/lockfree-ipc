@@ -52,6 +52,7 @@ struct boost_sut {
 static_assert(load_sut<moodycamel_sut> && load_sut<boost_sut>);
 #endif
 
-static_assert(load_sut<ring_sut<spsc_v1>> && load_sut<ring_sut<spsc_v2>> && load_sut<ring_sut<spsc_v3>>);
+static_assert(load_sut<ring_sut<spsc_v1>> && load_sut<ring_sut<spsc_v2>> && load_sut<ring_sut<spsc_v3>> &&
+              load_sut<ring_sut<spsc_v4>>);
 
 }  // namespace lfipc::bench

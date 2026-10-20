@@ -44,6 +44,7 @@ extern "C" [[gnu::noinline]] void lfipc_hist_record(lfipc::bench::histogram<>& h
 LFIPC_SPSC_SUBJECT(v1)
 LFIPC_SPSC_SUBJECT(v2)
 LFIPC_SPSC_SUBJECT(v3)
+LFIPC_SPSC_SUBJECT(v4)
 
 #define LFIPC_MPMC_SUBJECT(V)                                                                         \
     using mpmc_##V##_subject = lfipc::mpmc_##V<lfipc::bench::message, 1024>;                           \
@@ -106,6 +107,8 @@ int main(int argc, char** argv) {
         auto q1 = std::make_unique<spsc_v1_subject>();
         auto q2 = std::make_unique<spsc_v2_subject>();
         auto q3 = std::make_unique<spsc_v3_subject>();
+        auto q4 = std::make_unique<spsc_v4_subject>();
+        if (!lfipc_spsc_v4_push(*q4, m) || !lfipc_spsc_v4_pop(*q4, m)) return 1;
         if (!lfipc_spsc_v1_push(*q1, m) || !lfipc_spsc_v1_pop(*q1, m)) return 1;
         if (!lfipc_spsc_v2_push(*q2, m) || !lfipc_spsc_v2_pop(*q2, m)) return 1;
         if (!lfipc_spsc_v3_push(*q3, m) || !lfipc_spsc_v3_pop(*q3, m)) return 1;

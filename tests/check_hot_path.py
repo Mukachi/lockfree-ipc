@@ -162,7 +162,7 @@ for n, ins in spin.items():
 # SPSC S3
 FORBIDDEN = {"lock", "mfence", "lfence", "sfence"}  # plus xchg with a memory operand (implicit lock)
 ops = {n: ins for n, ins in funcs.items() if n.startswith("lfipc_spsc_")}
-check(len(ops) >= 8, f"SPSC push and pop subjects found, v1-v3 and through shared memory ({len(ops)})")
+check(len(ops) >= 10, f"SPSC push and pop subjects found, v1-v4 and through shared memory ({len(ops)})")
 for n, ins in sorted(ops.items()):
     calls = sorted({o for m, o in ins if m == "call" or (m == "jmp" and "@plt" in o)})
     # xchg locks only with a memory operand; `xchg %ax,%ax` is the 2-byte nop

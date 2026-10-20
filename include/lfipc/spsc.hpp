@@ -8,6 +8,17 @@
 
 namespace lfipc {
 
+namespace detail {
+
+// A slot: packed (SlotAlign 0, the same size and alignment as T) or on its
+// own SlotAlign bytes.
+template <typename T, std::size_t SlotAlign>
+struct alignas(SlotAlign == 0 ? alignof(T) : SlotAlign) spsc_slot {
+    T v;
+};
+
+}  // namespace detail
+
 // A ring of `Capacity` slots (a power of two) holding trivially copyable `T`.
 // `tail` is the next slot to write and is written only by the producer;
 // `head` is the next slot to read and is written only by the consumer. Both
@@ -26,19 +37,25 @@ namespace lfipc {
 // the ring look fuller, an old tail emptier, so the cost is a reload, never
 // an overwrite or a read of an unwritten slot.
 //
+// `SlotAlign` 0 packs the slots; 128 gives each its own 128 bytes (v4, note 011).
+//
 // The defaults are the measured choice, v3 (note 006, Review): cached counters
 // and 128-byte separation. v1 and v2 stay below, named, with their results.
-template <typename T, std::size_t Capacity, std::size_t Separation = 128, bool Cached = true>
+template <typename T, std::size_t Capacity, std::size_t Separation = 128, bool Cached = true,
+          std::size_t SlotAlign = 0>
 class spsc_ring {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable (S4)");
     static_assert(Capacity >= 2 && (Capacity & (Capacity - 1)) == 0, "Capacity must be a power of two");
     static_assert(Separation == 64 || Separation == 128, "Separation is one line or an adjacent pair");
     static_assert(std::atomic<std::uint64_t>::is_always_lock_free, "counters must be lock-free to share memory");
+    static_assert(SlotAlign == 0 || SlotAlign == 64 || SlotAlign == 128, "slots packed, or one line or a pair each");
+    static_assert(SlotAlign != 0 || sizeof(detail::spsc_slot<T, 0>) == sizeof(T), "a packed slot is just T");
 
 public:
     static constexpr std::size_t capacity = Capacity;
     static constexpr std::size_t separation = Separation;
     static constexpr bool cached = Cached;
+    static constexpr std::size_t slot_align = SlotAlign;
 
     // `start` sets both counters, so tests can begin just below 2^64 (S2).
     explicit spsc_ring(std::uint64_t start = 0) noexcept
@@ -57,7 +74,7 @@ public:
         } else {
             if (t - head_.load(std::memory_order_acquire) == Capacity) return false;
         }
-        slots_[t & mask] = v;
+        slots_[t & mask].v = v;
         tail_.store(t + 1, std::memory_order_release);
         return true;
     }
@@ -73,7 +90,7 @@ public:
         } else {
             if (h == tail_.load(std::memory_order_acquire)) return false;
         }
-        out = slots_[h & mask];
+        out = slots_[h & mask].v;
         head_.store(h + 1, std::memory_order_release);
         return true;
     }
@@ -87,7 +104,7 @@ private:
     // Consumer's line: its counter and its copy of the producer's (Cached only).
     alignas(Separation) std::atomic<std::uint64_t> head_;
     std::uint64_t tail_cache_;
-    alignas(Separation) T slots_[Capacity];
+    alignas(Separation) detail::spsc_slot<T, SlotAlign> slots_[Capacity];
 };
 
 // v1: Lamport's ring, counters on separate 64-byte lines (note 006).
@@ -103,5 +120,9 @@ using spsc_v2 = spsc_ring<T, Capacity, 64, true>;
 template <typename T, std::size_t Capacity>
 using spsc_v3 = spsc_ring<T, Capacity, 128, true>;
 static_assert(std::is_same_v<spsc_ring<int, 8>, spsc_v3<int, 8>>, "the default ring is v3");
+
+// v4: v3 with each slot on its own 128 bytes (note 011).
+template <typename T, std::size_t Capacity>
+using spsc_v4 = spsc_ring<T, Capacity, 128, true, 128>;
 
 }  // namespace lfipc
