@@ -170,7 +170,21 @@ if(LFIPC_BASELINES)
     URL_HASH SHA256=9bed76128d4e46755dbe818487788c6fceb6f72b378f4daa49b7e1e600d9088d  # released 2026-08-12
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     EXCLUDE_FROM_ALL)
-  FetchContent_MakeAvailable(readerwriterqueue boost)
+  # MPMC baselines (note 010). Header-only; SOURCE_SUBDIR names no directory,
+  # so their own CMake projects (tests, install rules) are not added.
+  set(LFIPC_CQ_VERSION "v1.0.5 (9afb997)")
+  set(LFIPC_RIGTORP_VERSION "v1.0 (11ffb3c)")
+  FetchContent_Declare(concurrentqueue
+    GIT_REPOSITORY https://github.com/cameron314/concurrentqueue.git
+    GIT_TAG 9afb99746f0f5fc94ac8aef737053ae0481ba8d1  # v1.0.5, released 2026-04-03
+    GIT_SHALLOW FALSE
+    SOURCE_SUBDIR none)
+  FetchContent_Declare(rigtorp_mpmc
+    GIT_REPOSITORY https://github.com/rigtorp/MPMCQueue.git
+    GIT_TAG 11ffb3cd77998cba83c20d2853720be1625cd719  # v1.0, released 2020-04-17
+    GIT_SHALLOW FALSE
+    SOURCE_SUBDIR none)
+  FetchContent_MakeAvailable(readerwriterqueue boost concurrentqueue rigtorp_mpmc)
 endif()
 
 if(LFIPC_BASELINES)
@@ -178,7 +192,8 @@ if(LFIPC_BASELINES)
   # apply to our code only.
   add_library(lfipc_baselines INTERFACE)
   get_target_property(rwq_inc readerwriterqueue INTERFACE_INCLUDE_DIRECTORIES)
-  target_include_directories(lfipc_baselines SYSTEM INTERFACE ${rwq_inc})
+  target_include_directories(lfipc_baselines SYSTEM INTERFACE ${rwq_inc} ${concurrentqueue_SOURCE_DIR}
+                             ${rigtorp_mpmc_SOURCE_DIR}/include)
   target_link_libraries(lfipc_baselines INTERFACE Boost::lockfree)
   set_target_properties(lfipc_baselines PROPERTIES SYSTEM ON)
 
@@ -226,6 +241,12 @@ add_test(NAME placement_test COMMAND placement_test)
 add_executable(mpmc_test tests/mpmc_test.cpp)
 target_link_libraries(mpmc_test PRIVATE lfipc Threads::Threads)
 add_test(NAME mpmc_test COMMAND mpmc_test)
+
+if(LFIPC_BASELINES)
+  add_executable(mpmc_queues_test tests/mpmc_queues_test.cpp)
+  target_link_libraries(mpmc_queues_test PRIVATE lfipc lfipc_baselines Threads::Threads)
+  add_test(NAME mpmc_queues_test COMMAND mpmc_queues_test)
+endif()
 
 add_executable(load_mp_test tests/load_mp_test.cpp)
 target_link_libraries(load_mp_test PRIVATE lfipc Threads::Threads)
