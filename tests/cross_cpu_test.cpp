@@ -1,4 +1,8 @@
 // Tests for include/lfipc/bench/cross_cpu.hpp. Spec: docs/design/001-clock.md
+// Started with "quiet", it measures this machine and checks only that no pair
+// proves disagreement, a property of the machine's clocks.
+#include "test_machine.hpp"
+
 #include <lfipc/bench/calibrate.hpp>
 #include <lfipc/bench/cross_cpu.hpp>
 
@@ -42,11 +46,9 @@ lfipc::bench::cross_cpu_pair summarise(const trips& t, std::size_t warmup) {
     return lfipc::bench::summarise_cross_cpu(t.a_send, t.b_recv, t.b_send, t.a_recv, warmup);
 }
 
-}  // namespace
-
-int main() {
+// Bounds, warm-up, convergence, validation and parsing, on synthetic input.
+void logic_checks() {
     using namespace lfipc::bench;
-
     // Bounds arithmetic: offset +50, latency 100. d1 = 150, d2 = 50.
     {
         const auto p = summarise(synthetic(1000, 50, 100), 0);
@@ -100,6 +102,15 @@ int main() {
         const auto p = measure_pair(0, -1, 100, 10);
         check(!p.ok && !p.reason.empty(), "unpinnable CPU refused with a reason");
     }
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    using namespace lfipc::bench;
+    const bool quiet = lfipc::test::quiet_run(argc, argv);
+
+    if (!quiet) logic_checks();
 
     // This machine: CPU 0 against every other online CPU (S5), reported.
     const auto cpus = online_cpus();
@@ -123,10 +134,13 @@ int main() {
     }
     std::printf("info  %zu pairs, %zu converged, %zu proven disagreement\n", pairs.size(), converged,
                 disagree);
-    check(!cpus.empty() && pairs.size() == cpus.size() - 1, "CPU 0 against every other online CPU");
-    check(ok == pairs.size(), "every pair measured");
-    // Sanity check for S8: unfenced reads could show false disagreement here.
-    check(disagree == 0, "no pair proves disagreement on this machine");
+    if (quiet) {
+        // Sanity check for S8: unfenced reads could show false disagreement here.
+        check(disagree == 0, "no pair proves disagreement on this machine");
+    } else {
+        check(!cpus.empty() && pairs.size() == cpus.size() - 1, "CPU 0 against every other online CPU");
+        check(ok == pairs.size(), "every pair measured");
+    }
 
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;

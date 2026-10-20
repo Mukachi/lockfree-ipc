@@ -63,10 +63,12 @@ if(Python3_FOUND)
   set_tests_properties(check_clock_json PROPERTIES FIXTURES_REQUIRED clock_json)
 endif()
 
-# S6 and S8 are checked in the compiled code, so x86-64 only.
+# S6 and S8 are checked in the compiled code, so x86-64 only, and not in a
+# sanitizer build, whose instrumentation adds calls to every hot path.
 add_executable(hot_path_subject tests/hot_path_subject.cpp)
 target_link_libraries(hot_path_subject PRIVATE lfipc Threads::Threads)
-if(Python3_FOUND AND CMAKE_OBJDUMP AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+if(Python3_FOUND AND CMAKE_OBJDUMP AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64"
+   AND NOT CMAKE_CXX_FLAGS MATCHES "-fsanitize")
   add_test(NAME check_hot_path
            COMMAND Python3::Interpreter -I ${CMAKE_SOURCE_DIR}/tests/check_hot_path.py
                    ${CMAKE_OBJDUMP} $<TARGET_FILE:hot_path_subject>)
@@ -220,3 +222,16 @@ endif()
 add_executable(placement_test tests/placement_test.cpp)
 target_link_libraries(placement_test PRIVATE lfipc Threads::Threads)
 add_test(NAME placement_test COMMAND placement_test)
+
+# Note 009: running anywhere. Checks that need a quiet, dedicated machine run
+# from the same executables started with "quiet", under the label `quiet`; CI
+# runs `ctest -LE quiet`. Tests that pin CPUs never overlap under `ctest -j`.
+foreach(t noise_test clock_block_test cross_cpu_test)
+  add_test(NAME ${t}_quiet COMMAND ${t} quiet)
+  set_tests_properties(${t}_quiet PROPERTIES LABELS quiet)
+endforeach()
+set_tests_properties(clock_block_test clock_block_test_quiet cross_cpu_test cross_cpu_test_quiet overhead_test
+                     record_cost_test load_test load_xproc_test noise_test noise_test_quiet noise_block_test
+                     placement_test
+                     PROPERTIES RESOURCE_LOCK cpu)
+set_tests_properties(load_test load_xproc_test PROPERTIES SKIP_RETURN_CODE 77)

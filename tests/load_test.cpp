@@ -1,4 +1,5 @@
 // Tests for include/lfipc/bench/load.hpp. Spec: docs/design/003-open-loop-load.md
+#include "test_machine.hpp"
 #include "test_suts.hpp"
 
 #include <lfipc/bench/calibrate.hpp>
@@ -39,10 +40,18 @@ void report(const char* name, const load_result& r, double tpn) {
 }  // namespace
 
 int main() {
+    const auto cpus = t::pick_cpus(2);
+    if (!cpus) {
+        t::skip("load_test", "needs two CPUs to pin producer and consumer");
+        return t::skip_code;
+    }
     const auto cal = calibrate(3, 50);
     const double tpn = cal.ticks_per_ns;
     load_config c;
     c.ticks_per_ns = tpn;
+    c.producer_cpu = (*cpus)[0];
+    c.consumer_cpu = (*cpus)[1];
+    std::printf("info  producer CPU %d, consumer CPU %d\n", c.producer_cpu, c.consumer_cpu);
     auto r = std::make_unique<load_result>();  // two 128 KB histograms: keep off the stack
 
     check(load_warmup(1e6, 1'000'000) == 100'000 && load_warmup(1e6, 10'000'000) == 1'000'000 &&
@@ -156,7 +165,7 @@ int main() {
         c.messages = 1'000;
         run_load(sut, c, *r);
         check(!r->ok && !r->reason.empty(), "unpinnable CPU refuses with a reason");
-        c.producer_cpu = 2;
+        c.producer_cpu = (*cpus)[0];
     }
 
     std::printf("%s\n", failures ? "FAILED" : "all passed");

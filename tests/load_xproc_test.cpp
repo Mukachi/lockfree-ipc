@@ -1,4 +1,6 @@
 // Tests for include/lfipc/bench/load_xproc.hpp. Spec: docs/design/008-shm-transport.md
+#include "test_machine.hpp"
+
 #include <lfipc/bench/calibrate.hpp>
 #include <lfipc/bench/load_xproc.hpp>
 
@@ -31,9 +33,17 @@ bool finished(const load_result& r) {
 }  // namespace
 
 int main() {
+    const auto cpus = lfipc::test::pick_cpus(2);
+    if (!cpus) {
+        lfipc::test::skip("load_xproc_test", "needs two CPUs to pin producer and consumer");
+        return lfipc::test::skip_code;
+    }
     const double tpn = calibrate(3, 50).ticks_per_ns;
     load_config c;
     c.ticks_per_ns = tpn;
+    c.producer_cpu = (*cpus)[0];
+    c.consumer_cpu = (*cpus)[1];
+    std::printf("info  producer CPU %d, consumer CPU %d\n", c.producer_cpu, c.consumer_cpu);
     c.rate_per_s = 1e6;
     c.messages = 200'000;
     auto r = std::make_unique<load_result>();

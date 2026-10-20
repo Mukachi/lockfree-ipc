@@ -1,7 +1,9 @@
 // Tests for include/lfipc/bench/noise_block.hpp. Spec: docs/design/005-noise-floor.md
 //
-// Writes noise_block.json, a short sample on CPU 2 and a refused one, in run
+// Writes noise_block.json, a short sample on one CPU (2 on dev-lnx01) and a refused one, in run
 // order (environment, noise, clock), for check_noise_json.py.
+#include "test_machine.hpp"
+
 #include <lfipc/bench/noise_block.hpp>
 
 #include <cstdio>
@@ -10,7 +12,8 @@
 
 int main() {
     using namespace lfipc::bench;
-    auto samples = sample_noise({2, -1}, 0.2);
+    const int cpu = lfipc::test::pick_cpus(1).value().front();
+    auto samples = sample_noise({cpu, -1}, 0.2);
     const double tpn = calibrate(3, 50).ticks_per_ns;
 
     // Classes from a known histogram: boundaries at 10 us, 100 us, 1 ms.
@@ -33,7 +36,7 @@ int main() {
     w.end_object();
     std::ofstream("noise_block.json") << w.str() << '\n';
     const bool ok = samples[0]->ok && !samples[1]->ok;
-    std::printf("%s  sampled CPU 2, refused CPU -1\n", ok ? "pass" : "FAIL");
+    std::printf("%s  sampled CPU %d, refused CPU -1\n", ok ? "pass" : "FAIL", cpu);
     std::printf("%s\n", classes && ok ? "all passed" : "FAILED");
     return classes && ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

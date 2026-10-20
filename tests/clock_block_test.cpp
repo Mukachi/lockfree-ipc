@@ -3,6 +3,10 @@
 // Runs the clock flow twice, healthy and with a forced refusal, and writes both
 // blocks to clock_ok.json and clock_refused.json in the working directory.
 // check_clock_json.py then checks that each parses and has exactly the agreed fields (S3).
+// Started with "quiet", it checks only that the healthy run publishes, which
+// needs a calibrated TSC on a quiet machine.
+#include "test_machine.hpp"
+
 #include <lfipc/bench/clock_block.hpp>
 
 #include <cstdio>
@@ -33,9 +37,10 @@ bool has(const std::string& s, const char* needle) { return s.find(needle) != st
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
     // Short settings: this checks the flow and the block, not the numbers.
     clock_options opt;
+    opt.overhead_cpu = lfipc::test::pick_cpus(1).value().front();
     opt.calibration_windows = 3;
     opt.window_ms = 20;
     opt.overhead_samples = 100'000;
@@ -45,12 +50,18 @@ int main() {
 
     const auto ok = run_clock(opt);
     std::printf("info  %s\n", ok.ok ? "flow published" : ok.reason.c_str());
-    if (clock_is_tsc) {
-        check(ok.ok && ok.reason.empty(), "healthy run publishes");
-        check(ok.cross_cpu.size() + 1 == online_cpus().size(), "cross-CPU block covers every other CPU");
-        check(ok.ovh.cpu == 2, "overhead measured on CPU 2");
-    } else {
+    if (lfipc::test::quiet_run(argc, argv)) {
+        check(!clock_is_tsc || (ok.ok && ok.reason.empty()), "healthy run publishes");
+        std::printf("%s\n", failures ? "FAILED" : "all passed");
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
+    if (!clock_is_tsc) {
         check(!ok.ok, "S7 fallback refuses");
+    } else if (ok.ok) {
+        check(ok.cross_cpu.size() + 1 == online_cpus().size(), "cross-CPU block covers every other CPU");
+        check(ok.ovh.cpu == opt.overhead_cpu, "overhead measured on the CPU asked for");
+    } else {
+        check(!ok.reason.empty(), "a refused healthy run says why (a quiet machine publishes: label quiet)");
     }
     write(ok, "clock_ok.json");
 

@@ -1,4 +1,6 @@
 // Tests for include/lfipc/bench/record_cost.hpp. Spec: docs/design/002-histogram.md (S7)
+#include "test_machine.hpp"
+
 #include <lfipc/bench/record_cost.hpp>
 
 #include <algorithm>
@@ -45,7 +47,7 @@ int main() {
     }
 
     // Whole measurement, short, reported.
-    const auto cases = measure_record_cost(2, 100'000, 10'000);
+    const auto cases = measure_record_cost(lfipc::test::pick_cpus(1).value().front(), 100'000, 10'000);
     check(cases.size() == 4 && cases[0].name == "none" && cases[3].name == "worst", "four cases, bare read first");
     for (const auto& c : cases)
         std::printf("info  %-9s cpu %d  p50 %llu  p99 %llu  p99.9 %llu ticks\n", c.name.c_str(), c.cost.cpu,
