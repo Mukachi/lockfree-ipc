@@ -51,3 +51,9 @@ note = "008"
 runs = ["shm-dev-lnx01-20261020T102449Z.json",
         "shm-dev-lnx01-20261020T103309Z.json",
         "shm-dev-lnx01-20261020T104128Z.json"]
+
+[siblings]
+note = "012"
+runs = ["siblings-dev-lnx01-20261020T202834Z.json",
+        "siblings-dev-lnx01-20261020T203933Z.json",
+        "siblings-dev-lnx01-20261020T205032Z.json"]

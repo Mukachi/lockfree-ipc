@@ -1,6 +1,6 @@
 # 012 — Processes on hyper-thread siblings
 
-**Status:** Built · **Updated:** 2026-10-20
+**Status:** Measured · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -82,8 +82,8 @@ Counts per message, not published as latency figures; recorded in Review as the 
       across `fork`), speculation status recorded; tests that each cell runs and delivers every
       message
 - [x] `bench/siblings_bench`, its JSON block; RESULTS.md section only if S5 applies
-- [ ] Three bench-on runs
-- [ ] `perf stat` diagnostic run for the cells that differ; Review
+- [x] Three bench-on runs
+- [x] `perf stat` diagnostic run for the cells that differ; Review
 
 ## Review
 
@@ -92,3 +92,4 @@ Counts per message, not published as latency figures; recorded in Review as the 
 | 2026-10-20 | Draft | Written for review |
 | 2026-10-20 | Agreed | Approved by Shep: cells A–D on one segment layout (threads one or two mappings; processes attaching by name or inheriting the mapping), note 006's thread version as the layout reference, 2 → 3 control for A and C, rates 100k–5M/s, one-way and round trip separately, three runs; speculation status recorded; a `perf stat` diagnostic run by Shep; published figures change only if S5 applies |
 | 2026-10-20 | Built | `run_load_xproc` gains `inherit` (the child uses the mappings it inherits across `fork`: cell D) and `xproc_info` (each process's ring address and the `Speculation*` lines of its `/proc/<pid>/status`). `bench/siblings.hpp`: cells A and B as two threads on the segment through one or two mappings (the second mapped by name in the same process), C and D through `run_load_xproc`, R as note 006's heap ring; all through note 003's loops. `siblings_test`: every cell, one-way and round trip, delivers every message in order; A–D put the ring 128 bytes into its page, R at offset 0; A and D's ends share one address, B and C's do not; every process reports `SpeculationIndirectBranch: conditional enabled` (no STIBP requested, the same in every cell). `bench/siblings_bench`: 2 → 46 cells A–D and R, 2 → 3 cells A and C, rates 100k–5M/s, one-way and round trip, about 11 minutes a run. Clean under TSan and ASan; builds for aarch64 |
+| 2026-10-20 | Measured | Runs `results/siblings-dev-lnx01-20261020T202834Z.json`, `...203933Z.json`, `...205032Z.json` (commit 287369b, clean, bench mode, memory bound to node 0, every ring on node 0, zero noise stops, none out of order; every process `SpeculationIndirectBranch: conditional enabled`), published as a RESULTS.md section (S5 applies). 2 → 46, ns: **virtual address: no effect** (A = B, C = D at every rate and mode). **One-way: mostly layout.** R (page offset 0) against A (offset 128): p50 58 against 64–65 at 1M/s, 64–65 against 71 at 100k/s; processes add 0–3 ns at p50 (C 64–66), ~4 at p99.9 (98 against 94). **Round trip: the address space.** C and D against A and B: p50 137–144 against 123–124 at 1M/s, +13–20 ns from 100k to 2M/s, ~10 at 5M/s; layout adds ~0–5 ns (R 123–124). Control 2 → 3: A and C overlap (S3). Counters (`perf stat -C 2,46`, 1M/s, 11M messages per cell, two event sets of four so no multiplexing; diagnostic, not published): on the producer in round trip, memory-ordering machine clears per message R 0.021, A 0.014, C 0.080, and STLB hits R 0.109, A 0.217, C 0.431; page walks ≈0 per message in every cell; 4K-alias load blocks no higher in C (0.022 against 0.035); L2 misses negligible. The producer polls the echo ring its sibling writes; with two address spaces it takes ~5× the ordering clears and twice the L1 dTLB misses (two page tables, two entries per page). At ~100+ cycles a clear (estimated, not measured), the extra 0.07 per message is ~3–5 ns on average: part of the 13–20 ns, not all. The one-way layout effect is not explained by these counters (R and A equal on every event, or R higher). Ruled out: STIBP, the virtual address, page walks, 4K aliasing, L2 misses. Left open, by choice: the rest of the round-trip mechanism and the layout effect's, given their size. Note 008 amended (S5). The counter run also exposed a hazard in the machine scripts, not the repo: `bench-on` run twice without `bench-off` saves the fenced settings as the originals, so `bench-off` then restores the fence (NUMA balancing left off, IRQs fenced). Reported to Shep with a guard for `bench-on`; a reboot restores the defaults |

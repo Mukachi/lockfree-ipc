@@ -20,7 +20,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-SETS = ("noise", "clock", "histogram", "load", "spsc", "shm", "mpmc")
+SETS = ("noise", "clock", "histogram", "load", "spsc", "shm", "mpmc", "siblings")
 BLOCK = re.compile(r"(<!-- results:(?P<name>[a-z0-9-]+) -->\n)(?P<body>.*?)(<!-- /results -->)", re.S)
 MEAN = re.compile(r"\b(mean|average|avg)\b", re.I)
 QUEUES = ("spsc_v1", "spsc_v2", "spsc_v3", "spsc_v4", "moodycamel", "boost")
@@ -95,7 +95,8 @@ def validate(root, name, files):
         if not e["build"]["clean"]:
             raise ReportError(f"{name}: {f}: built from a tree with uncommitted changes")
         need = {"noise": ["noise_bench"], "clock": ["clock"], "histogram": ["clock", "record_cost"],
-                "load": ["load"], "spsc": ["spsc"], "shm": ["shm"], "mpmc": ["mpmc"]}[name]
+                "load": ["load"], "spsc": ["spsc"], "shm": ["shm"], "mpmc": ["mpmc"],
+                "siblings": ["siblings"]}[name]
         missing = [k for k in need if k not in d]
         if missing:
             raise ReportError(f"{name}: {f}: no {missing} block")
@@ -103,8 +104,18 @@ def validate(root, name, files):
             raise ReportError(f"{name}: {f}: clock refused: {d['clock'].get('reason')}")
         if name == "load" and set(d["load"]) != {"one_way", "round_trip"}:
             raise ReportError(f"{name}: {f}: load block is not one mode per run (note 003, amended)")
-        if name in ("load", "spsc", "shm", "mpmc"):
+        if name in ("load", "spsc", "shm", "mpmc", "siblings"):
             check_placement(name, f, d)
+        if name == "siblings":
+            for p in d["siblings"]["pairs"]:
+                for k, c in p["cells"].items():
+                    if not {"one_way", "round_trip"} <= set(c):
+                        raise ReportError(f"{name}: {f}: cell {k} is not one mode per run (note 003, amended)")
+                offsets = {c["ring_page_offset"] for k, c in p["cells"].items() if k != "R"}
+                if len(offsets) > 1:
+                    raise ReportError(f"{name}: {f}: cells A-D do not share one layout (note 012, S1)")
+                if len({c[s] for c in p["cells"].values() for s in ("producer_speculation", "consumer_speculation")}) > 1:
+                    raise ReportError(f"{name}: {f}: speculation controls differ between cells (note 012, S2)")
         if name == "mpmc":
             for sh in d["mpmc"]["shapes"]:
                 for q, blocks in sh["queues"].items():
@@ -149,6 +160,8 @@ def check_placement(name, f, d):
         blocks = [b for p in d["spsc"]["pairs"] for q in p["queues"].values() for b in q.values()]
     elif name == "mpmc":
         blocks = [b for sh in d["mpmc"]["shapes"] for q in sh["queues"].values() for b in q.values()]
+    elif name == "siblings":
+        blocks = [c[m] for p in d["siblings"]["pairs"] for c in p["cells"].values() for m in ("one_way", "round_trip")]
     else:
         blocks = [b for p in d["shm"]["pairs"] for t in p["transports"].values() for b in t.values()]
     for b in blocks:
@@ -340,6 +353,11 @@ def shm_section(note, runs):
                 rows += [[t] + r for r in load_rows(blocks, mode, len(runs))]
             out += [f"### {pair[0]} → {pair[1]} ({where}), {title}", "",
                     table(["Transport", "Rate", "Published", "p50", "p99", "p99.9", "p99.99"], rows), ""]
+            if pair[1] - pair[0] == 44 and mode == "round_trip":
+                out += ["On siblings this compares more than threads with processes: the process version's ring "
+                        "starts 128 bytes into a page (after the segment header), the thread version's at offset 0. "
+                        "Note 012 separates the two: the one-way difference is mostly that layout, the round-trip "
+                        "difference the second address space (see Hyper-thread siblings below).", ""]
     return out
 
 
@@ -371,8 +389,41 @@ def mpmc_section(note, runs):
     return out
 
 
+SIBLING_CELLS = {"R": "threads, ring at page offset 0 (note 006's layout)",
+                 "A": "threads, one mapping", "B": "threads, two mappings",
+                 "C": "processes, child attaches by name", "D": "processes, inherited mapping"}
+
+
+def siblings_section(note, runs):
+    s = runs[0][1]["siblings"]
+    off = {k: c["ring_page_offset"] for k, c in s["pairs"][0]["cells"].items()}
+    out = [f"## Hyper-thread siblings (note {note})", "",
+           f"Why v3 across processes is slower than across threads on hyper-thread siblings (note 008). Cells A–D "
+           f"use one shared-memory segment layout (ring at page offset {off['A']}) and vary only the address space "
+           f"(threads or processes) and the virtual address (one mapping or two); R is note 006's thread version "
+           f"(ring at page offset {off['R']}). Capacity {s['capacity']}, {s['message_bytes']}-byte messages, "
+           f"{s['seconds_per_rate']:g} s per rate; every process's speculation controls identical (no STIBP). "
+           f"Findings (note 012, Review): the virtual address makes no difference (A = B, C = D); one-way, the "
+           f"ring's page offset costs ~6 ns (R against A) and processes add 0–3 ns at p50; round trip, processes "
+           f"add 13–20 ns at p50 (C, D against A, B), with ~5× the memory-ordering machine clears and 2× the "
+           f"STLB hits on the producer, which together explain only part of it.", ""]
+    for i, p in enumerate(s["pairs"]):
+        pair = (p["producer_cpu"], p["consumer_cpu"])
+        where = "hyper-thread siblings" if pair[1] - pair[0] == 44 else "different cores, same socket: control"
+        for mode, title in (("one_way", "one-way"), ("round_trip", "round trip")):
+            rows = []
+            for k in ("R", "A", "B", "C", "D"):
+                if k in p["cells"]:
+                    blocks = [d["siblings"]["pairs"][i]["cells"][k][mode] for _, d in runs]
+                    rows += [[f"{k}: {SIBLING_CELLS[k]}"] + r for r in load_rows(blocks, mode, len(runs))]
+            out += [f"### {pair[0]} → {pair[1]} ({where}), {title}", "",
+                    table(["Cell", "Rate", "Published", "p50", "p99", "p99.9", "p99.99"], rows), ""]
+    return out
+
+
 SECTIONS = {"noise": noise_section, "clock": clock_section, "histogram": histogram_section,
-            "load": load_section, "spsc": spsc_section, "shm": shm_section, "mpmc": mpmc_section}
+            "load": load_section, "spsc": spsc_section, "shm": shm_section, "mpmc": mpmc_section,
+            "siblings": siblings_section}
 
 
 def results_md(sets):

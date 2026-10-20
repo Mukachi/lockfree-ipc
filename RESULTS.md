@@ -15,6 +15,7 @@ HP ProLiant DL380 Gen9, BIOS P89 (08/29/2024); 2 × Intel(R) Xeon(R) CPU E5-2699
 | spsc (note 006) | 3 | 2026-10-20 17:54 UTC | bb35cba | performance | POLL | on | off | yes | 2-21,46-65 |
 | shm (note 008) | 3 | 2026-10-20 10:24 UTC | 531986e | performance | POLL | on | off | yes | 2-21,46-65 |
 | mpmc (note 010) | 3 | 2026-10-20 15:15 UTC | 8943c99 | performance | POLL | on | off | yes | 2-21,46-65 |
+| siblings (note 012) | 3 | 2026-10-20 20:28 UTC | 287369b | performance | POLL | on | off | yes | 2-21,46-65 |
 
 Every run met note 004's bench-mode conditions (each file's `environment.bench_mode`, checked before use) and was built clean; compiler and flags are in each file's `environment.build`. Ranges are min–max over a set's runs.
 
@@ -281,6 +282,8 @@ v3 between two processes (a `shm_open` segment; the consumer is a forked process
 | processes | 5M/s | 3/3 | 131–132 | 163–168 | 171–177 | 181–198 |
 | processes | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
 
+On siblings this compares more than threads with processes: the process version's ring starts 128 bytes into a page (after the segment header), the thread version's at offset 0. Note 012 separates the two: the one-way difference is mostly that layout, the round-trip difference the second address space (see Hyper-thread siblings below).
+
 ## MPMC queues (note 010)
 
 One-way latency from each message's intended send time, by shape (producers → consumers) and aggregate rate; capacity 1024, 16-byte messages, 10 s per rate. Each producer sends at its share of the rate, offset so arrivals are evenly spaced; a run is refused if any producer falls behind, or if any message is lost. v1: Vyukov's bounded queue, slots packed; v2: each slot on its own 128 bytes. Baselines: moodycamel `ConcurrentQueue` v1.0.5 (9afb997) through its token-free API (explicit producer tokens, which its README calls almost always faster, need per-thread state the harness does not carry), FIFO per producer only and not linearizable; Boost `lockfree::queue` 1.92.0, the only one lock-free in the strict sense; rigtorp `MPMCQueue` v1.0 (11ffb3c), the same design as ours, slots padded to 64 bytes. v2 is the chosen queue, `mpmc_ring`'s default. At 1 → 1, SPSC v3 is the reference.
@@ -439,3 +442,83 @@ One-way latency from each message's intended send time, by shape (producers → 
 | rigtorp | 2M/s | 3/3 | 267–275 | 326–340 | 351–374 | 377–406 |
 | rigtorp | 5M/s | 1/3 | 589 | 2,126 | 3,764 | 25.6 µs |
 | rigtorp | 10M/s | 0/3 | refused (generator ceiling) |  |  |  |
+
+## Hyper-thread siblings (note 012)
+
+Why v3 across processes is slower than across threads on hyper-thread siblings (note 008). Cells A–D use one shared-memory segment layout (ring at page offset 128) and vary only the address space (threads or processes) and the virtual address (one mapping or two); R is note 006's thread version (ring at page offset 0). Capacity 1024, 16-byte messages, 10 s per rate; every process's speculation controls identical (no STIBP). Findings (note 012, Review): the virtual address makes no difference (A = B, C = D); one-way, the ring's page offset costs ~6 ns (R against A) and processes add 0–3 ns at p50; round trip, processes add 13–20 ns at p50 (C, D against A, B), with ~5× the memory-ordering machine clears and 2× the STLB hits on the producer, which together explain only part of it.
+
+### 2 → 46 (hyper-thread siblings), one-way
+
+| Cell | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| R: threads, ring at page offset 0 (note 006's layout) | 100k/s | 3/3 | 64–65 | 81–87 | 93–94 | 97–101 |
+| R: threads, ring at page offset 0 (note 006's layout) | 1M/s | 3/3 | 58 | 85–86 | 93–94 | 96–97 |
+| R: threads, ring at page offset 0 (note 006's layout) | 2M/s | 3/3 | 58 | 83–85 | 91–92 | 96–97 |
+| R: threads, ring at page offset 0 (note 006's layout) | 5M/s | 3/3 | 53–56 | 79–83 | 92–93 | 95–97 |
+| A: threads, one mapping | 100k/s | 3/3 | 71 | 93–94 | 96–98 | 102–103 |
+| A: threads, one mapping | 1M/s | 3/3 | 64–65 | 89 | 94 | 98–101 |
+| A: threads, one mapping | 2M/s | 3/3 | 58–61 | 86–89 | 94–96 | 98 |
+| A: threads, one mapping | 5M/s | 3/3 | 56–57 | 85–88 | 94–95 | 99–101 |
+| B: threads, two mappings | 100k/s | 3/3 | 71 | 93 | 96–97 | 102 |
+| B: threads, two mappings | 1M/s | 3/3 | 64 | 89–90 | 93–94 | 98–101 |
+| B: threads, two mappings | 2M/s | 3/3 | 59–60 | 86–88 | 94–95 | 98 |
+| B: threads, two mappings | 5M/s | 3/3 | 56–57 | 85–88 | 94–95 | 100–101 |
+| C: processes, child attaches by name | 100k/s | 3/3 | 69–74 | 95–101 | 101–107 | 105–115 |
+| C: processes, child attaches by name | 1M/s | 3/3 | 64–66 | 87–88 | 98 | 102–108 |
+| C: processes, child attaches by name | 2M/s | 3/3 | 62 | 84–89 | 96–99 | 103–106 |
+| C: processes, child attaches by name | 5M/s | 3/3 | 58 | 83–92 | 91–98 | 98–104 |
+| D: processes, inherited mapping | 100k/s | 3/3 | 69–74 | 96–100 | 101–106 | 106–110 |
+| D: processes, inherited mapping | 1M/s | 3/3 | 64–65 | 88–91 | 98 | 102–108 |
+| D: processes, inherited mapping | 2M/s | 3/3 | 62 | 84–89 | 97–99 | 102–108 |
+| D: processes, inherited mapping | 5M/s | 3/3 | 58 | 84–92 | 91–98 | 98–104 |
+
+### 2 → 46 (hyper-thread siblings), round trip
+
+| Cell | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| R: threads, ring at page offset 0 (note 006's layout) | 100k/s | 3/3 | 122–124 | 160–164 | 168–170 | 172–177 |
+| R: threads, ring at page offset 0 (note 006's layout) | 1M/s | 3/3 | 123–124 | 159–166 | 168–173 | 173–192 |
+| R: threads, ring at page offset 0 (note 006's layout) | 2M/s | 3/3 | 119 | 155–156 | 163–166 | 174–175 |
+| R: threads, ring at page offset 0 (note 006's layout) | 5M/s | 3/3 | 116–117 | 149–151 | 156–166 | 173–175 |
+| A: threads, one mapping | 100k/s | 3/3 | 127–130 | 163–167 | 177–178 | 182–187 |
+| A: threads, one mapping | 1M/s | 3/3 | 124 | 165–168 | 179 | 185–190 |
+| A: threads, one mapping | 2M/s | 3/3 | 119–120 | 159–160 | 178–179 | 187–195 |
+| A: threads, one mapping | 5M/s | 3/3 | 121–122 | 159–162 | 177–179 | 184–187 |
+| B: threads, two mappings | 100k/s | 3/3 | 127–130 | 163–167 | 176–178 | 181–184 |
+| B: threads, two mappings | 1M/s | 3/3 | 123–124 | 162–167 | 179 | 184–190 |
+| B: threads, two mappings | 2M/s | 3/3 | 120–121 | 158–161 | 178–179 | 186–191 |
+| B: threads, two mappings | 5M/s | 3/3 | 121 | 157–160 | 177–179 | 185–188 |
+| C: processes, child attaches by name | 100k/s | 3/3 | 140–149 | 176–187 | 198–204 | 208–218 |
+| C: processes, child attaches by name | 1M/s | 3/3 | 137–144 | 168–171 | 176–183 | 201–203 |
+| C: processes, child attaches by name | 2M/s | 3/3 | 135–141 | 164–168 | 176–178 | 201–203 |
+| C: processes, child attaches by name | 5M/s | 3/3 | 131–132 | 171–174 | 180–183 | 194–199 |
+| D: processes, inherited mapping | 100k/s | 3/3 | 138–149 | 171–191 | 196–207 | 208–216 |
+| D: processes, inherited mapping | 1M/s | 3/3 | 137–144 | 167–170 | 179–194 | 203–207 |
+| D: processes, inherited mapping | 2M/s | 3/3 | 134–139 | 163–168 | 172–181 | 200–203 |
+| D: processes, inherited mapping | 5M/s | 3/3 | 131–132 | 172–174 | 181–184 | 193–200 |
+
+### 2 → 3 (different cores, same socket: control), one-way
+
+| Cell | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| A: threads, one mapping | 100k/s | 3/3 | 176–203 | 213–258 | 267–276 | 273–292 |
+| A: threads, one mapping | 1M/s | 3/3 | 161–168 | 243–248 | 262–264 | 273–281 |
+| A: threads, one mapping | 2M/s | 3/3 | 167–198 | 219–248 | 238–266 | 277–282 |
+| A: threads, one mapping | 5M/s | 3/3 | 157–164 | 208–216 | 250–253 | 270–272 |
+| C: processes, child attaches by name | 100k/s | 3/3 | 177–209 | 219–259 | 245–277 | 274–291 |
+| C: processes, child attaches by name | 1M/s | 3/3 | 171–193 | 252–255 | 267–268 | 274–278 |
+| C: processes, child attaches by name | 2M/s | 3/3 | 165–184 | 213–258 | 255–269 | 269–302 |
+| C: processes, child attaches by name | 5M/s | 3/3 | 160–163 | 242–244 | 255–260 | 270–282 |
+
+### 2 → 3 (different cores, same socket: control), round trip
+
+| Cell | Rate | Published | p50 | p99 | p99.9 | p99.99 |
+|---|---|---|---|---|---|---|
+| A: threads, one mapping | 100k/s | 3/3 | 302–331 | 410–426 | 452–456 | 489–515 |
+| A: threads, one mapping | 1M/s | 3/3 | 303–320 | 392–416 | 429–451 | 465–486 |
+| A: threads, one mapping | 2M/s | 3/3 | 299–349 | 382–419 | 425–481 | 472–517 |
+| A: threads, one mapping | 5M/s | 3/3 | 350–351 | 495–520 | 587–588 | 613–620 |
+| C: processes, child attaches by name | 100k/s | 3/3 | 327–360 | 415–474 | 443–528 | 480–558 |
+| C: processes, child attaches by name | 1M/s | 3/3 | 323–344 | 410–424 | 429–465 | 461–524 |
+| C: processes, child attaches by name | 2M/s | 3/3 | 316–322 | 399–406 | 420–453 | 438–472 |
+| C: processes, child attaches by name | 5M/s | 3/3 | 355–364 | 487–542 | 595–601 | 634–643 |
