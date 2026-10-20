@@ -26,7 +26,7 @@ Only Spec and Review are mandatory. Any section can be one line.
 | [009](design/009-ci.md) | Continuous integration | Measured |
 | [010](design/010-mpmc-queue.md) | MPMC queue | Measured |
 | [011](design/011-spsc-padded-slots.md) | SPSC v4: padded slots | Measured |
-| [012](design/012-siblings.md) | Processes on hyper-thread siblings | Draft |
+| [012](design/012-siblings.md) | Processes on hyper-thread siblings | Agreed |
 
 ## Decision records
 

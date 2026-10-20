@@ -1,6 +1,6 @@
 # 012 — Processes on hyper-thread siblings
 
-**Status:** Draft · **Updated:** 2026-10-20
+**Status:** Agreed · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -90,3 +90,4 @@ Counts per message, not published as latency figures; recorded in Review as the 
 | Date | Stage | Finding |
 |---|---|---|
 | 2026-10-20 | Draft | Written for review |
+| 2026-10-20 | Agreed | Approved by Shep: cells A–D on one segment layout (threads one or two mappings; processes attaching by name or inheriting the mapping), note 006's thread version as the layout reference, 2 → 3 control for A and C, rates 100k–5M/s, one-way and round trip separately, three runs; speculation status recorded; a `perf stat` diagnostic run by Shep; published figures change only if S5 applies |
