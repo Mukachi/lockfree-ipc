@@ -33,12 +33,14 @@ jobs:
         run: sudo sysctl -w vm.mmap_rnd_bits=28
 
       # The runner image is Ubuntu 24.04; dev-lnx01's toolchain is the 26.04
-      # archive's, so the suite runs in that container. CAP_SYS_NICE lets
-      # Docker's seccomp profile pass the NUMA calls the placement code makes
-      # (set_mempolicy, move_pages).
+      # archive's, so the suite runs in that container, unconfined: Docker's
+      # seccomp profile refuses move_pages (EPERM, even with CAP_SYS_NICE), which
+      # the placement checks use, and its masked /proc paths leave
+      # /proc/interrupts empty, which the noise meter reads. The VM is
+      # throwaway and runs only this repository's code.
       - name: Build and test (ubuntu:26.04)
         run: |
-          docker run --rm --cap-add SYS_NICE -v "$PWD":/src -w /src ubuntu:26.04 sh -c '
+          docker run --rm --security-opt seccomp=unconfined --security-opt systempaths=unconfined -v "$PWD":/src -w /src ubuntu:26.04 sh -c '
             set -e
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
