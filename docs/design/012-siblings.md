@@ -1,6 +1,6 @@
 # 012 — Processes on hyper-thread siblings
 
-**Status:** Agreed · **Updated:** 2026-10-20
+**Status:** Built · **Updated:** 2026-10-20
 
 ## Proposal
 
@@ -78,10 +78,10 @@ Counts per message, not published as latency figures; recorded in Review as the 
 
 ## Tasks
 
-- [ ] Cells A–D on the shared-memory segment (two mappings in one process; the inherited mapping
+- [x] Cells A–D on the shared-memory segment (two mappings in one process; the inherited mapping
       across `fork`), speculation status recorded; tests that each cell runs and delivers every
       message
-- [ ] `bench/siblings_bench`, its JSON block; RESULTS.md section only if S5 applies
+- [x] `bench/siblings_bench`, its JSON block; RESULTS.md section only if S5 applies
 - [ ] Three bench-on runs
 - [ ] `perf stat` diagnostic run for the cells that differ; Review
 
@@ -91,3 +91,4 @@ Counts per message, not published as latency figures; recorded in Review as the 
 |---|---|---|
 | 2026-10-20 | Draft | Written for review |
 | 2026-10-20 | Agreed | Approved by Shep: cells A–D on one segment layout (threads one or two mappings; processes attaching by name or inheriting the mapping), note 006's thread version as the layout reference, 2 → 3 control for A and C, rates 100k–5M/s, one-way and round trip separately, three runs; speculation status recorded; a `perf stat` diagnostic run by Shep; published figures change only if S5 applies |
+| 2026-10-20 | Built | `run_load_xproc` gains `inherit` (the child uses the mappings it inherits across `fork`: cell D) and `xproc_info` (each process's ring address and the `Speculation*` lines of its `/proc/<pid>/status`). `bench/siblings.hpp`: cells A and B as two threads on the segment through one or two mappings (the second mapped by name in the same process), C and D through `run_load_xproc`, R as note 006's heap ring; all through note 003's loops. `siblings_test`: every cell, one-way and round trip, delivers every message in order; A–D put the ring 128 bytes into its page, R at offset 0; A and D's ends share one address, B and C's do not; every process reports `SpeculationIndirectBranch: conditional enabled` (no STIBP requested, the same in every cell). `bench/siblings_bench`: 2 → 46 cells A–D and R, 2 → 3 cells A and C, rates 100k–5M/s, one-way and round trip, about 11 minutes a run. Clean under TSan and ASan; builds for aarch64 |

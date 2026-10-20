@@ -254,6 +254,15 @@ if(LFIPC_BASELINES)
     LFIPC_RIGTORP_VERSION="${LFIPC_RIGTORP_VERSION}")
 endif()
 
+add_executable(siblings_test tests/siblings_test.cpp)
+target_link_libraries(siblings_test PRIVATE lfipc Threads::Threads)
+add_test(NAME siblings_test COMMAND siblings_test)
+set_tests_properties(siblings_test PROPERTIES SKIP_RETURN_CODE 77)
+
+add_executable(siblings_bench bench/siblings_bench.cpp)
+target_link_libraries(siblings_bench PRIVATE lfipc Threads::Threads)
+target_compile_definitions(siblings_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results")
+
 add_executable(load_mp_test tests/load_mp_test.cpp)
 target_link_libraries(load_mp_test PRIVATE lfipc Threads::Threads)
 add_test(NAME load_mp_test COMMAND load_mp_test)
@@ -267,6 +276,6 @@ foreach(t noise_test clock_block_test cross_cpu_test)
 endforeach()
 set_tests_properties(clock_block_test clock_block_test_quiet cross_cpu_test cross_cpu_test_quiet overhead_test
                      record_cost_test load_test load_xproc_test noise_test noise_test_quiet noise_block_test
-                     placement_test load_mp_test
+                     placement_test load_mp_test siblings_test
                      PROPERTIES RESOURCE_LOCK cpu)
 set_tests_properties(load_test load_xproc_test PROPERTIES SKIP_RETURN_CODE 77)

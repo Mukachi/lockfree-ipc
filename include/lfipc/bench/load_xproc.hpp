@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <fstream>
 #include <memory>
 #include <new>
 #include <string>
@@ -31,6 +32,26 @@ struct shm_queue_sut {
 };
 static_assert(load_sut<shm_queue_sut>);
 
+// What a cross-process run saw (note 012): where each process has the ring,
+// and each process's speculation controls (/proc/<pid>/status).
+struct xproc_info {
+    std::uintptr_t producer_ring = 0, consumer_ring = 0;
+    std::string producer_speculation, consumer_speculation;
+};
+
+// The "Speculation..." lines of /proc/<pid>/status, joined by "; ".
+inline std::string speculation_status(pid_t pid) {
+    std::ifstream f("/proc/" + std::to_string(pid) + "/status");
+    std::string line, out;
+    while (std::getline(f, line))
+        if (line.rfind("Speculation", 0) == 0) {
+            for (auto& ch : line)
+                if (ch == '\t') ch = ' ';
+            out += (out.empty() ? "" : "; ") + line;
+        }
+    return out;
+}
+
 namespace detail {
 
 // Shared between parent and child, mapped before fork: the start-up signals,
@@ -39,6 +60,7 @@ struct xproc_shared {
     load_sync sync;
     std::atomic<int> child_stage{0};  // 1 attached and pinned, 2 results written
     std::uint64_t out_of_order = 0, negative = 0;
+    std::uint64_t consumer_ring = 0;  // the ring's address in the child
     std::uint64_t latency[histogram<>::state_words];
 };
 static_assert(std::is_standard_layout_v<xproc_shared>);
@@ -46,12 +68,15 @@ static_assert(std::is_standard_layout_v<xproc_shared>);
 }  // namespace detail
 
 // Producer in this process, consumer in a forked child that attaches to the
-// segments by name (its own mappings, as an unrelated process would). The same
+// segments by name (its own mappings, as an unrelated process would), or with
+// `inherit` uses the mappings it inherits across fork, at the same addresses
+// (note 012, cell D). `info`, if given, receives the ring's address in each
+// process and each process's speculation controls. The same
 // producer_loop and consumer_loop as the thread version. This process pins to
 // the producer CPU for the run and creates the segments there, so their pages
 // are first touched on the producer's node; its affinity is restored after.
 template <bool Echo>
-void run_load_xproc(const load_config& c, load_result& r) {
+void run_load_xproc(const load_config& c, load_result& r, bool inherit = false, xproc_info* info = nullptr) {
     if (!detail::prepare_load(c, r, Echo)) return;
     const std::size_t warm = r.warmup_discarded;
     const std::size_t n = warm + c.messages;
@@ -94,22 +119,28 @@ void run_load_xproc(const load_config& c, load_result& r) {
         return;
     }
     if (child == 0) {
-        // Consumer process. Its own mappings of the segments, by name.
+        // Consumer process. Its own mappings of the segments, by name, or the
+        // ones inherited from the parent.
         std::string e;
-        auto in = shm_queue::attach(base + "-fwd", shm_message_type_id, e);
-        std::unique_ptr<shm_queue> out;
-        if (in && Echo) out = shm_queue::attach(base + "-back", shm_message_type_id, e);
+        std::unique_ptr<shm_queue> in_own, out_own;
+        if (!inherit) {
+            in_own = shm_queue::attach(base + "-fwd", shm_message_type_id, e);
+            if (in_own && Echo) out_own = shm_queue::attach(base + "-back", shm_message_type_id, e);
+        }
+        shm_queue* in = inherit ? fwd.get() : in_own.get();
+        shm_queue* out = inherit ? back.get() : out_own.get();
         const bool ok = in && (!Echo || out) && detail::pin_to(c.consumer_cpu);
         if (!ok) sync.failed.fetch_add(1);
+        if (in) shared->consumer_ring = reinterpret_cast<std::uintptr_t>(&in->ring());
         shared->child_stage.store(1, std::memory_order_release);
         sync.ready.fetch_add(1, std::memory_order_release);
         if (!ok) std::_Exit(1);
         while (sync.t0.load(std::memory_order_acquire) == 0) detail::cpu_relax();
         if (sync.abort.load()) std::_Exit(0);
         auto local = std::make_unique<load_result>();  // histograms built before the loop
-        shm_queue_sut in_sut{in.get()};
+        shm_queue_sut in_sut{in};
         if constexpr (Echo) {
-            shm_queue_sut out_sut{out.get()};
+            shm_queue_sut out_sut{out};
             detail::consumer_loop<true>(in_sut, out_sut, *local, warm, n);
         } else {
             detail::no_return none;
@@ -133,6 +164,15 @@ void run_load_xproc(const load_config& c, load_result& r) {
 
     std::vector<ticks> offset;
     detail::fill_schedule(offset, n, r.interval_ticks);
+    if (info) {
+        // Before the schedule starts: the child is attached (or has failed) and
+        // waiting for t0.
+        while (shared->child_stage.load(std::memory_order_acquire) < 1 && !sync.abort.load()) detail::cpu_relax();
+        info->producer_ring = reinterpret_cast<std::uintptr_t>(&fwd->ring());
+        info->consumer_ring = static_cast<std::uintptr_t>(shared->consumer_ring);
+        info->producer_speculation = speculation_status(::getpid());
+        info->consumer_speculation = speculation_status(child);
+    }
     sync.ready.fetch_add(1, std::memory_order_release);
     detail::start_schedule(sync, c.ticks_per_ns);
     if (!sync.abort.load()) {
