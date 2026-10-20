@@ -246,6 +246,12 @@ if(LFIPC_BASELINES)
   add_executable(mpmc_queues_test tests/mpmc_queues_test.cpp)
   target_link_libraries(mpmc_queues_test PRIVATE lfipc lfipc_baselines Threads::Threads)
   add_test(NAME mpmc_queues_test COMMAND mpmc_queues_test)
+
+  add_executable(mpmc_bench bench/mpmc_bench.cpp)
+  target_link_libraries(mpmc_bench PRIVATE lfipc lfipc_baselines Threads::Threads)
+  target_compile_definitions(mpmc_bench PRIVATE LFIPC_RESULTS_DIR="${CMAKE_SOURCE_DIR}/results"
+    LFIPC_CQ_VERSION="${LFIPC_CQ_VERSION}" LFIPC_BOOST_VERSION="${LFIPC_BOOST_VERSION}"
+    LFIPC_RIGTORP_VERSION="${LFIPC_RIGTORP_VERSION}")
 endif()
 
 add_executable(load_mp_test tests/load_mp_test.cpp)

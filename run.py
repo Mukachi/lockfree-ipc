@@ -20,11 +20,14 @@ import sys
 import tomllib
 from pathlib import Path
 
-SETS = ("noise", "clock", "histogram", "load", "spsc", "shm")
+SETS = ("noise", "clock", "histogram", "load", "spsc", "shm", "mpmc")
 BLOCK = re.compile(r"(<!-- results:(?P<name>[a-z0-9-]+) -->\n)(?P<body>.*?)(<!-- /results -->)", re.S)
 MEAN = re.compile(r"\b(mean|average|avg)\b", re.I)
 QUEUES = ("spsc_v1", "spsc_v2", "spsc_v3", "moodycamel", "boost")
 QUEUE_LABEL = {"spsc_v1": "v1", "spsc_v2": "v2", "spsc_v3": "**v3**", "moodycamel": "moodycamel", "boost": "Boost"}
+MPMC_QUEUES = ("mpmc_v1", "mpmc_v2", "moodycamel", "boost", "rigtorp", "spsc_v3")
+MPMC_LABEL = {"mpmc_v1": "v1", "mpmc_v2": "v2", "moodycamel": "moodycamel", "boost": "Boost", "rigtorp": "rigtorp",
+              "spsc_v3": "SPSC v3 (reference)"}
 
 
 class ReportError(Exception):
@@ -91,7 +94,7 @@ def validate(root, name, files):
         if not e["build"]["clean"]:
             raise ReportError(f"{name}: {f}: built from a tree with uncommitted changes")
         need = {"noise": ["noise_bench"], "clock": ["clock"], "histogram": ["clock", "record_cost"],
-                "load": ["load"], "spsc": ["spsc"], "shm": ["shm"]}[name]
+                "load": ["load"], "spsc": ["spsc"], "shm": ["shm"], "mpmc": ["mpmc"]}[name]
         missing = [k for k in need if k not in d]
         if missing:
             raise ReportError(f"{name}: {f}: no {missing} block")
@@ -99,8 +102,15 @@ def validate(root, name, files):
             raise ReportError(f"{name}: {f}: clock refused: {d['clock'].get('reason')}")
         if name == "load" and set(d["load"]) != {"one_way", "round_trip"}:
             raise ReportError(f"{name}: {f}: load block is not one mode per run (note 003, amended)")
-        if name in ("load", "spsc", "shm"):
+        if name in ("load", "spsc", "shm", "mpmc"):
             check_placement(name, f, d)
+        if name == "mpmc":
+            for sh in d["mpmc"]["shapes"]:
+                for q, blocks in sh["queues"].items():
+                    if set(blocks) != {"one_way"}:
+                        raise ReportError(f"{name}: {f}: {q} is not one-way only (note 010)")
+                    if any(r["ok"] and r["received"] != r["sent"] for r in blocks["one_way"]["runs"]):
+                        raise ReportError(f"{name}: {f}: {q}: a published run lost messages")
         if name == "shm":
             for p in d["shm"]["pairs"]:
                 for t, blocks in p["transports"].items():
@@ -136,6 +146,8 @@ def check_placement(name, f, d):
         blocks = list(d["load"].values())
     elif name == "spsc":
         blocks = [b for p in d["spsc"]["pairs"] for q in p["queues"].values() for b in q.values()]
+    elif name == "mpmc":
+        blocks = [b for sh in d["mpmc"]["shapes"] for q in sh["queues"].values() for b in q.values()]
     else:
         blocks = [b for p in d["shm"]["pairs"] for t in p["transports"].values() for b in t.values()]
     for b in blocks:
@@ -328,8 +340,35 @@ def shm_section(note, runs):
     return out
 
 
+def mpmc_section(note, runs):
+    s = runs[0][1]["mpmc"]
+    out = [f"## MPMC queues (note {note})", "",
+           f"One-way latency from each message's intended send time, by shape (producers → consumers) and "
+           f"aggregate rate; capacity {s['capacity']}, {s['message_bytes']}-byte messages, "
+           f"{s['seconds_per_rate']:g} s per rate. Each producer sends at its share of the rate, offset so arrivals "
+           f"are evenly spaced; a run is refused if any producer falls behind, or if any message is lost. "
+           f"v1: Vyukov's bounded queue, slots packed; v2: each slot on its own 128 bytes. Baselines: "
+           f"moodycamel `ConcurrentQueue` {s['baselines']['moodycamel']} through its token-free API (explicit "
+           f"producer tokens, which its README calls almost always faster, need per-thread state the harness "
+           f"does not carry), FIFO per producer only and not linearizable; Boost `lockfree::queue` "
+           f"{s['baselines']['boost']}, the only one lock-free in the strict sense; rigtorp `MPMCQueue` "
+           f"{s['baselines']['rigtorp']}, the same design as ours. At 1 → 1, SPSC v3 is the reference.", ""]
+    for i, sh in enumerate(s["shapes"]):
+        cpus = sh["queues"][next(iter(sh["queues"]))]["one_way"]
+        rows = []
+        for q in MPMC_QUEUES:
+            if q not in sh["queues"]:
+                continue
+            blocks = [d["mpmc"]["shapes"][i]["queues"][q]["one_way"] for _, d in runs]
+            rows += [[MPMC_LABEL[q]] + r for r in load_rows(blocks, "one_way", len(runs))]
+        out += [f"### {sh['producers']} → {sh['consumers']} (CPUs {', '.join(map(str, cpus['producer_cpus']))} → "
+                f"{', '.join(map(str, cpus['consumer_cpus']))})", "",
+                table(["Queue", "Rate", "Published", "p50", "p99", "p99.9", "p99.99"], rows), ""]
+    return out
+
+
 SECTIONS = {"noise": noise_section, "clock": clock_section, "histogram": histogram_section,
-            "load": load_section, "spsc": spsc_section, "shm": shm_section}
+            "load": load_section, "spsc": spsc_section, "shm": shm_section, "mpmc": mpmc_section}
 
 
 def results_md(sets):
