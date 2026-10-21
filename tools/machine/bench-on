@@ -7,7 +7,7 @@ SAVED=/run/bench.saved
 SAVED_KTHREADS=/run/bench.kthreads
 
 cpupower frequency-set -g performance >/dev/null
-cpupower idle-set -D 2 >/dev/null
+cpupower idle-set -D 3 >/dev/null
 for d in /sys/devices/system/cpu/intel_uncore_frequency/package_*; do
   cat "$d/max_freq_khz" > "$d/min_freq_khz"
 done

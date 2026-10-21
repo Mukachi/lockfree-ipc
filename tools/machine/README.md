@@ -9,7 +9,7 @@ refused unless they hold (design note 004).
 | File | Installed at | What it does |
 |---|---|---|
 | [`99-bench-isolation.cfg`](99-bench-isolation.cfg) | `/etc/default/grub.d/` | Boot-time isolation of the reserved CPUs: `nohz_full`, `rcu_nocbs`, `isolcpus=managed_irq,domain` (note 005). Then `update-grub` and reboot |
-| [`bench-on`](bench-on) | `/usr/local/bin/` | Performance governor, deep C-states off, uncore clock pinned at its maximum, services and user programs fenced off the reserved CPUs (systemd `AllowedCPUs`), unbound kernel work, interrupts and kernel threads moved off them, automatic NUMA balancing off. Saves what it changes |
+| [`bench-on`](bench-on) | `/usr/local/bin/` | Performance governor, idle states deeper than C1 off (C1 kept: an idle hyper-thread sibling must halt, not spin; see below), uncore clock pinned at its maximum, services and user programs fenced off the reserved CPUs (systemd `AllowedCPUs`), unbound kernel work, interrupts and kernel threads moved off them, automatic NUMA balancing off. Saves what it changes |
 | [`bench-off`](bench-off) | `/usr/local/bin/` | Restores what `bench-on` saved |
 | [`bench-run`](bench-run) | `/usr/local/bin/` | Starts a benchmark outside the fence, as the calling user, so it can pin to the reserved CPUs |
 
@@ -27,3 +27,11 @@ the load generator's tail before they were removed (note 005).
 `bench-off` between (an interrupted run, then a new one), it saves the fenced settings as the
 originals, and `bench-off` then restores the fence. A reboot restores the kernel defaults. A guard
 at the top of `bench-on` (refuse if `/run/bench.saved` exists) would prevent it.
+
+**Changed 2026-10-21: C1 kept.** Until then `bench-on` ran `cpupower idle-set -D 2`. C1's exit
+latency is exactly 2 µs, so C1 was disabled too and only POLL remained: every idle reserved CPU,
+the measured CPUs' hyper-thread siblings included, spun in the kernel's poll loop and took a share
+of the core. A compute-bound benchmark (the FIX codec in `fix-order-gateway`) ran about 2× slower;
+the SPSC queue's latency, bound by cache-line transfers, did not move; the MPMC figures moved by up
+to ~15%. Now `-D 3`: C1 (halt) stays, deeper states stay off. The measured CPUs never go idle, so
+C1's exit latency does not reach them. Recorded in `lockfree-ipc` notes 004 and 005.
