@@ -7,7 +7,14 @@ SAVED=/run/bench.saved
 SAVED_KTHREADS=/run/bench.kthreads
 
 cpupower frequency-set -g performance >/dev/null
-cpupower idle-set -D 3 >/dev/null
+# Idle states: deep states stay available on the reserved CPUs. Benchmark
+# threads spin and never idle; an idle hyper-thread sibling must reach a deep
+# state to give its core's shared resources back (capped at C1 it halved the
+# branch prediction a compute-bound thread could use: lockfree-ipc note 004,
+# Review 2026-10-22). Housekeeping CPUs stay capped at C1.
+RESERVED=2-21,46-65
+cpupower -c $HOUSE idle-set -D 3 >/dev/null
+cpupower -c $RESERVED idle-set -E >/dev/null
 for d in /sys/devices/system/cpu/intel_uncore_frequency/package_*; do
   cat "$d/max_freq_khz" > "$d/min_freq_khz"
 done

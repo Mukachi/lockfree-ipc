@@ -64,7 +64,7 @@ void good_tree() {
         const char* names[] = {"POLL", "C1", "C1E", "C3", "C6"};
         for (int s = 0; s < 5; ++s) {
             put(b + "/cpuidle/state" + std::to_string(s) + "/name", names[s]);
-            put(b + "/cpuidle/state" + std::to_string(s) + "/disable", s < 2 ? "0" : "1");
+            put(b + "/cpuidle/state" + std::to_string(s) + "/disable", "0");
         }
     }
     put("/sys/devices/system/cpu/intel_pstate/no_turbo", "0");
@@ -104,7 +104,8 @@ int main(int argc, char** argv) {
               e.vulnerabilities.at("spectre_v2") == "Mitigation: Retpolines",
           "kernel fields, THP selection, vulnerabilities");
     check(e.governor == "performance" && e.turbo == true &&
-              e.idle_states_enabled == std::vector<std::string>{"C1", "POLL"} && e.uncore.size() == 2 &&
+              e.idle_states_enabled == std::vector<std::string>{"C1", "C1E", "C3", "C6", "POLL"} &&
+              e.idle_states_disabled.empty() && e.uncore.size() == 2 &&
               e.uncore[1].socket == 1 && e.uncore[1].min_khz == 2800000,
           "power fields over the reserved CPUs");
     check(e.fence_user == "0-1,4-5" && e.reserved == std::vector<int>{2, 3, 6, 7} &&
@@ -117,10 +118,10 @@ int main(int argc, char** argv) {
     put("/sys/devices/system/cpu/cpu3/cpufreq/scaling_governor", "schedutil");
     check(only(failures_now(), "governor is 'mixed: performance schedutil'"), "S3 one reserved CPU's governor wrong");
     good_tree();
-    put("/sys/devices/system/cpu/cpu6/cpuidle/state3/disable", "0");
-    check(only(failures_now(), "idle state C3 enabled"), "S3 a deep idle state enabled on one reserved CPU");
+    put("/sys/devices/system/cpu/cpu6/cpuidle/state4/disable", "1");
+    check(only(failures_now(), "idle state C6 disabled"), "S3 a deep idle state disabled on one reserved CPU");
     good_tree();
-    put("/sys/devices/system/cpu/cpu1/cpuidle/state4/disable", "0");
+    put("/sys/devices/system/cpu/cpu1/cpuidle/state4/disable", "1");
     check(failures_now().empty(), "idle states on a housekeeping CPU are not checked");
     good_tree();
     put("/sys/devices/system/cpu/intel_uncore_frequency/package_01_die_01/min_freq_khz", "1200000");

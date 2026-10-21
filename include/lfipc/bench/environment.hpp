@@ -86,6 +86,9 @@ struct environment {
     opt_str governor;  // the common value, or "mixed: ..." if they differ
     std::optional<bool> turbo;
     std::vector<std::string> idle_states_enabled;  // union over reserved CPUs
+    // Union over reserved CPUs of the states disabled: checked (condition 2),
+    // not written; bench_mode.ok certifies it (note 004, Review 2026-10-22).
+    std::vector<std::string> idle_states_disabled;
     std::vector<uncore_socket> uncore;
     // Build (embedded) and run
     std::string commit = LFIPC_GIT_COMMIT;
@@ -223,14 +226,15 @@ inline environment capture_environment(const env_reader& rd, int argc = 0, char*
     // Power, over the reserved CPUs (all online CPUs if there is no fence).
     std::vector<int> power_cpus = e.reserved;
     if (power_cpus.empty() && e.online) power_cpus = parse_cpu_list(*e.online);
-    std::set<std::string> governors, idle;
+    std::set<std::string> governors, idle, idle_off;
     for (int c : power_cpus) {
         const std::string base = "/sys/devices/system/cpu/cpu" + std::to_string(c);
         governors.insert(rd.read(base + "/cpufreq/scaling_governor").value_or("unknown"));
         for (const auto& st : rd.list(base + "/cpuidle")) {
             if (st.rfind("state", 0) != 0) continue;
-            if (rd.read_int(base + "/cpuidle/" + st + "/disable").value_or(0) == 0)
-                idle.insert(rd.read(base + "/cpuidle/" + st + "/name").value_or(st));
+            const auto name = rd.read(base + "/cpuidle/" + st + "/name").value_or(st);
+            if (rd.read_int(base + "/cpuidle/" + st + "/disable").value_or(0) == 0) idle.insert(name);
+            else idle_off.insert(name);
         }
     }
     if (governors.size() == 1 && *governors.begin() != "unknown") {
@@ -241,6 +245,7 @@ inline environment capture_environment(const env_reader& rd, int argc = 0, char*
         e.governor = g;
     }
     e.idle_states_enabled.assign(idle.begin(), idle.end());
+    e.idle_states_disabled.assign(idle_off.begin(), idle_off.end());
     if (const auto nt = rd.read_int("/sys/devices/system/cpu/intel_pstate/no_turbo")) e.turbo = *nt == 0;
     else if (const auto b = rd.read_int("/sys/devices/system/cpu/cpufreq/boost")) e.turbo = *b != 0;
     const std::string unc = "/sys/devices/system/cpu/intel_uncore_frequency/";
@@ -272,8 +277,13 @@ inline std::vector<std::string> bench_mode_failures(const environment& e) {
     if (!e.fence_system || !e.fence_user || *e.fence_system != *e.fence_user || e.reserved.empty())
         f.push_back("fence not in place: system and user slices not limited to the same housekeeping CPUs");
     if (e.governor != "performance") f.push_back("governor is '" + e.governor.value_or("unknown") + "', not 'performance'");
-    for (const auto& st : e.idle_states_enabled)
-        if (st != "POLL" && st != "C1") f.push_back("idle state " + st + " enabled on a reserved CPU");
+    // Every idle state available on the reserved CPUs: the measured threads spin
+    // and never idle, while an idle hyper-thread sibling must reach a deep
+    // state to give its core's shared resources back (capped at C1, it halved
+    // the branch prediction a compute-bound thread could use; note 004,
+    // Review 2026-10-22).
+    for (const auto& st : e.idle_states_disabled)
+        f.push_back("idle state " + st + " disabled on a reserved CPU");
     if (e.uncore.empty()) f.push_back("uncore frequency not readable");
     for (const auto& u : e.uncore)
         if (!u.min_khz || !u.max_khz || *u.min_khz != *u.max_khz)

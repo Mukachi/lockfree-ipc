@@ -9,7 +9,7 @@ refused unless they hold (design note 004).
 | File | Installed at | What it does |
 |---|---|---|
 | [`99-bench-isolation.cfg`](99-bench-isolation.cfg) | `/etc/default/grub.d/` | Boot-time isolation of the reserved CPUs: `nohz_full`, `rcu_nocbs`, `isolcpus=managed_irq,domain` (note 005). Then `update-grub` and reboot |
-| [`bench-on`](bench-on) | `/usr/local/bin/` | Performance governor, idle states deeper than C1 off (C1 kept: an idle hyper-thread sibling must halt, not spin; see below), uncore clock pinned at its maximum, services and user programs fenced off the reserved CPUs (systemd `AllowedCPUs`), unbound kernel work, interrupts and kernel threads moved off them, automatic NUMA balancing off. Saves what it changes |
+| [`bench-on`](bench-on) | `/usr/local/bin/` | Performance governor, every idle state left available on the reserved CPUs (an idle hyper-thread sibling must reach a deep state; see below) and housekeeping CPUs capped at C1, uncore clock pinned at its maximum, services and user programs fenced off the reserved CPUs (systemd `AllowedCPUs`), unbound kernel work, interrupts and kernel threads moved off them, automatic NUMA balancing off. Saves what it changes |
 | [`bench-off`](bench-off) | `/usr/local/bin/` | Restores what `bench-on` saved |
 | [`bench-run`](bench-run) | `/usr/local/bin/` | Starts a benchmark outside the fence, as the calling user, so it can pin to the reserved CPUs |
 
@@ -35,3 +35,10 @@ of the core. A compute-bound benchmark (the FIX codec in `fix-order-gateway`) ra
 the SPSC queue's latency, bound by cache-line transfers, did not move; the MPMC figures moved by up
 to ~15%. Now `-D 3`: C1 (halt) stays, deeper states stay off. The measured CPUs never go idle, so
 C1's exit latency does not reach them. Recorded in `lockfree-ipc` notes 004 and 005.
+
+**Changed 2026-10-22: deep idle states left on for the reserved CPUs.** Keeping C1 (above) stopped
+idle siblings spinning, but in C1 an idle sibling still holds its share of the core's partitioned
+resources: a compute-bound thread on its sibling saw ~3× the branch mispredictions and ran ~50%
+slower, in two speeds depending on when the sibling last woke. Bisected setting by setting, the
+cap alone did it. The measured threads never idle, so deep states add no wake-up latency to them.
+Recorded in `lockfree-ipc` note 004.
