@@ -10,50 +10,54 @@
 #
 # spsc (and the clock taken from the same runs) re-measured 2026-10-20 with
 # v4 added (note 011).
+#
+# Every set re-measured 2026-10-21 with C1 kept by bench-on: until then idle
+# hyper-thread siblings spun in POLL (note 004, Review). The earlier runs stay
+# in results/.
 
 [noise]
 note = "005"
-runs = ["noise-dev-lnx01-20261019T212615Z.json"]
+runs = ["noise-dev-lnx01-20261021T160224Z.json"]
 
 # The clock blocks of the published SPSC runs: the same conditions.
 [clock]
 note = "001"
-runs = ["spsc-dev-lnx01-20261020T175400Z.json",
-        "spsc-dev-lnx01-20261020T181914Z.json",
-        "spsc-dev-lnx01-20261020T184429Z.json"]
+runs = ["spsc-dev-lnx01-20261021T163735Z.json",
+        "spsc-dev-lnx01-20261021T175221Z.json",
+        "spsc-dev-lnx01-20261021T190714Z.json"]
 
 [histogram]
 note = "002"
-runs = ["histogram-dev-lnx01-20261019T215941Z.json",
-        "histogram-dev-lnx01-20261019T215949Z.json",
-        "histogram-dev-lnx01-20261019T215956Z.json"]
+runs = ["histogram-dev-lnx01-20261021T163550Z.json",
+        "histogram-dev-lnx01-20261021T175036Z.json",
+        "histogram-dev-lnx01-20261021T190529Z.json"]
 
 [load]
 note = "003"
-runs = ["load-dev-lnx01-20261020T091650Z.json",
-        "load-dev-lnx01-20261020T091829Z.json",
-        "load-dev-lnx01-20261020T092007Z.json"]
+runs = ["load-dev-lnx01-20261021T163557Z.json",
+        "load-dev-lnx01-20261021T175043Z.json",
+        "load-dev-lnx01-20261021T190536Z.json"]
 
 [spsc]
 note = "006"
-runs = ["spsc-dev-lnx01-20261020T175400Z.json",
-        "spsc-dev-lnx01-20261020T181914Z.json",
-        "spsc-dev-lnx01-20261020T184429Z.json"]
+runs = ["spsc-dev-lnx01-20261021T163735Z.json",
+        "spsc-dev-lnx01-20261021T175221Z.json",
+        "spsc-dev-lnx01-20261021T190714Z.json"]
 
 [mpmc]
 note = "010"
-runs = ["mpmc-dev-lnx01-20261020T151545Z.json",
-        "mpmc-dev-lnx01-20261020T154543Z.json",
-        "mpmc-dev-lnx01-20261020T161548Z.json"]
+runs = ["mpmc-dev-lnx01-20261021T170206Z.json",
+        "mpmc-dev-lnx01-20261021T181649Z.json",
+        "mpmc-dev-lnx01-20261021T193143Z.json"]
 
 [shm]
 note = "008"
-runs = ["shm-dev-lnx01-20261020T102449Z.json",
-        "shm-dev-lnx01-20261020T103309Z.json",
-        "shm-dev-lnx01-20261020T104128Z.json"]
+runs = ["shm-dev-lnx01-20261021T173121Z.json",
+        "shm-dev-lnx01-20261021T184614Z.json",
+        "shm-dev-lnx01-20261021T200109Z.json"]
 
 [siblings]
 note = "012"
-runs = ["siblings-dev-lnx01-20261020T202834Z.json",
-        "siblings-dev-lnx01-20261020T203933Z.json",
-        "siblings-dev-lnx01-20261020T205032Z.json"]
+runs = ["siblings-dev-lnx01-20261021T173927Z.json",
+        "siblings-dev-lnx01-20261021T185420Z.json",
+        "siblings-dev-lnx01-20261021T200915Z.json"]

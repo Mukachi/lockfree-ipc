@@ -16,12 +16,12 @@ run's conditions: [RESULTS.md](RESULTS.md). These blocks are generated from the 
 <!-- results:spsc-summary -->
 | Queue | Rate | p50 | p99 | p99.9 |
 |---|---|---|---|---|
-| **v3** | 1M/s | 162–190 | 226–251 | 256–267 |
-| **v3** | 2M/s | 160–168 | 246–257 | 259–297 |
-| moodycamel | 1M/s | 219–223 | 286–293 | 301–342 |
-| moodycamel | 2M/s | 218–225 | 284–289 | 303–340 |
-| Boost | 1M/s | 200–226 | 249–281 | 256–292 |
-| Boost | 2M/s | 189–223 | 253–278 | 261–295 |
+| **v3** | 1M/s | 156–167 | 229–241 | 250–264 |
+| **v3** | 2M/s | 168–187 | 203–223 | 240–257 |
+| moodycamel | 1M/s | 215–299 | 274–342 | 301–360 |
+| moodycamel | 2M/s | 218–271 | 279–320 | 298–345 |
+| Boost | 1M/s | 189–211 | 219–287 | 281–294 |
+| Boost | 2M/s | 182–205 | 267–289 | 274–297 |
 
 One-way latency in ns, CPUs 2 → 3 (separate cores), range over 3 runs. Full tables and conditions: [RESULTS.md](RESULTS.md).
 <!-- /results -->
@@ -29,28 +29,28 @@ One-way latency in ns, CPUs 2 → 3 (separate cores), range over 3 runs. Full ta
 <!-- results:mpmc-summary -->
 | Queue | Producers → consumers | Rate | p50 | p99 | p99.9 |
 |---|---|---|---|---|---|
-| **v2** | 2 → 1 | 1M/s | 213–242 | 255–281 | 269–303 |
-| **v2** | 2 → 1 | 2M/s | 211–233 | 252–270 | 272–299 |
-| **v2** | 4 → 4 | 1M/s | 294–319 | 327–351 | 334–358 |
-| **v2** | 4 → 4 | 2M/s | 270–287 | 313–331 | 327–355 |
-| moodycamel | 2 → 1 | 1M/s | 320–327 | 624–641 | 696–745 |
-| moodycamel | 2 → 1 | 2M/s | 310–330 | 596–626 | 659–739 |
-| moodycamel | 4 → 4 | 1M/s | 438–458 | 810–865 | 982–1,074 |
-| moodycamel | 4 → 4 | 2M/s | 406–459 | 743–867 | 890–1,064 |
-| Boost | 2 → 1 | 1M/s | 381–477 | 480–543 | 487–591 |
-| Boost | 2 → 1 | 2M/s | 401–443 | 517–679 | 586–818 |
-| Boost | 4 → 4 | 1M/s | 600–690 | 837–952 | 933–1,041 |
-| Boost | 4 → 4 | 2M/s (2/3 runs) | 708–820 | 1,194–1,813 | 1,410–2,781 |
-| rigtorp | 2 → 1 | 1M/s | 217–248 | 306–318 | 318–338 |
-| rigtorp | 2 → 1 | 2M/s | 212–232 | 278–311 | 314–329 |
-| rigtorp | 4 → 4 | 1M/s | 270–286 | 318–372 | 338–403 |
-| rigtorp | 4 → 4 | 2M/s | 267–275 | 326–340 | 351–374 |
+| **v2** | 2 → 1 | 1M/s | 210–238 | 250–276 | 271–303 |
+| **v2** | 2 → 1 | 2M/s | 205–220 | 244–252 | 258–275 |
+| **v2** | 4 → 4 | 1M/s | 276–290 | 305–323 | 312–331 |
+| **v2** | 4 → 4 | 2M/s | 282–307 | 322–349 | 347–378 |
+| moodycamel | 2 → 1 | 1M/s | 296–313 | 602–658 | 682–720 |
+| moodycamel | 2 → 1 | 2M/s | 271–300 | 595–638 | 701–719 |
+| moodycamel | 4 → 4 | 1M/s | 400–466 | 752–833 | 955–1,030 |
+| moodycamel | 4 → 4 | 2M/s | 415–456 | 790–883 | 1,012–1,044 |
+| Boost | 2 → 1 | 1M/s | 461–468 | 498–594 | 505–598 |
+| Boost | 2 → 1 | 2M/s | 376–471 | 499–645 | 529–820 |
+| Boost | 4 → 4 | 1M/s | 618–673 | 896–957 | 975–1,037 |
+| Boost | 4 → 4 | 2M/s | 734–830 | 1,307–1,510 | 1,625–2,002 |
+| rigtorp | 2 → 1 | 1M/s | 217–243 | 254–301 | 303–320 |
+| rigtorp | 2 → 1 | 2M/s | 200–228 | 247–285 | 263–308 |
+| rigtorp | 4 → 4 | 1M/s | 268–274 | 295–351 | 301–390 |
+| rigtorp | 4 → 4 | 2M/s | 258–269 | 306–348 | 324–390 |
 
 MPMC one-way latency in ns at the aggregate rate, range over 3 runs; v2 is this repo's queue. moodycamel is measured through its token-free API. Full tables and conditions: [RESULTS.md](RESULTS.md).
 <!-- /results -->
 
 <!-- results:noise-floor -->
-Noise floor on the reserved CPUs: at most 0.0003% of time stopped, longest stop 23.1 µs.
+Noise floor on the reserved CPUs: at most 0.0002% of time stopped, longest stop 18.3 µs.
 <!-- /results -->
 
 ## What is here
@@ -81,13 +81,15 @@ SPSC ring; exactly one `lock cmpxchg` in the MPMC ring).
   `MPMCQueue` (the same algorithm) neither dominates; moodycamel's `ConcurrentQueue` (measured
   without producer tokens) and Boost's `queue` are slower (note 010).
 - **Processes.** Across two processes on separate cores the ring costs nothing measurable over
-  two threads. On hyper-thread siblings, one-way the difference is mostly where the ring sits in
+  two threads one-way, and a little round trip. On hyper-thread siblings, one-way the difference is mostly where the ring sits in
   its page; round trip, the second address space, with more memory-ordering machine clears and
   TLB misses explaining part of it (notes 008, 012).
 - **The harness, too, was measured.** Its first queue results were wrong twice: no benchmark
   controlled NUMA placement (the queues sat on the far node), and the generator's own producer and
-  consumer results shared a cache line. Both were found from the data, fixed, and every set
-  re-measured (note 008, Review).
+  consumer results shared a cache line (note 008, Review). Later, a FIX codec benchmark in a
+  sister repository ran twice as slow as its code: the machine setup had disabled every idle state
+  but polling, so each measured CPU's idle hyper-thread sibling spun and took half the core
+  (note 004, Review). Each was found from the data, fixed, and every set re-measured.
 
 ## How it is measured
 
@@ -102,7 +104,7 @@ SPSC ring; exactly one `lock cmpxchg` in the MPMC ring).
 - **The machine.** HPE ProLiant DL380 Gen9, 2 × Xeon E5-2699 v4, Ubuntu 26.04, kernel 7.0.
   Benchmarks run on node 0's CPUs 2–21 and their siblings, isolated at boot (`nohz_full`,
   `isolcpus`), with services, kernel threads and interrupts fenced off them, the performance
-  governor, deep C-states off, the uncore clock pinned, automatic NUMA balancing off, and every
+  governor, idle states deeper than C1 off (so idle hyper-threads halt rather than spin), the uncore clock pinned, automatic NUMA balancing off, and every
   benchmark's memory bound to the measured node. Periodic firmware SMIs were removed in the BIOS.
   The noise floor is measured in every run (note 005). The setup scripts: [tools/machine](tools/machine).
 - **Every run records its conditions** (hardware, microcode, kernel command line, power, fence,
