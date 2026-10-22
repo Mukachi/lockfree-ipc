@@ -52,6 +52,7 @@ void good_tree() {
     put("/proc/cmdline", "ro quiet");
     put("/sys/kernel/mm/transparent_hugepage/enabled", "always [madvise] never");
     put("/proc/sys/kernel/numa_balancing", "0");
+    put("/proc/sys/kernel/perf_event_paranoid", "2");
     put("/sys/devices/system/cpu/vulnerabilities/spectre_v2", "Mitigation: Retpolines");
     put("/sys/devices/system/cpu/vulnerabilities/meltdown", "Not affected");
     put("/sys/fs/cgroup/system.slice/cpuset.cpus", "0-1,4-5");
@@ -100,7 +101,7 @@ int main(int argc, char** argv) {
           "cpu fields, sockets counted from physical ids");
     check(e.numa.size() == 2 && e.numa[0].cpus == "0-3" && e.numa[0].memory_mb == 2048 && e.numa[1].memory_mb == 1024,
           "numa nodes, memory in MB, non-node entries skipped");
-    check(e.release == "7.0.0-38-generic" && e.thp == "madvise" && e.numa_balancing == "0" && e.vulnerabilities.size() == 2 &&
+    check(e.release == "7.0.0-38-generic" && e.thp == "madvise" && e.numa_balancing == "0" && e.perf_event_paranoid == "2" && e.vulnerabilities.size() == 2 &&
               e.vulnerabilities.at("spectre_v2") == "Mitigation: Retpolines",
           "kernel fields, THP selection, vulnerabilities");
     check(e.governor == "performance" && e.turbo == true &&

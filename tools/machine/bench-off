@@ -2,7 +2,6 @@
 SAVED=/run/bench.saved
 SAVED_KTHREADS=/run/bench.kthreads
 
-cpupower idle-set -E >/dev/null
 cpupower frequency-set -g schedutil >/dev/null
 for d in /sys/devices/system/cpu/intel_uncore_frequency/package_*; do
   cat "$d/initial_min_freq_khz" > "$d/min_freq_khz"
@@ -13,7 +12,8 @@ for u in system.slice user.slice init.scope; do
   systemctl set-property --runtime "$u" AllowedCPUs=
 done
 
-# Restore kernel work and interrupt placement as bench-on found it.
+# Restore idle states, kernel work, interrupt placement, NUMA balancing and
+# counter access as bench-on found them.
 if [ -f $SAVED ]; then
   while read f v; do
     echo "$v" > "$f" 2>/dev/null

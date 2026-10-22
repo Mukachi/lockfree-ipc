@@ -6,6 +6,19 @@ HOUSE_MASK=00fffffc,00003fff,ffc00003
 SAVED=/run/bench.saved
 SAVED_KTHREADS=/run/bench.kthreads
 
+# Save what we change, before changing anything, so bench-off restores it
+# exactly: idle states as found (the kernel disables C3 at boot on this CPU),
+# kernel work and interrupt placement, NUMA balancing, counter access.
+: > $SAVED
+for f in /sys/devices/system/cpu/cpu[0-9]*/cpuidle/state*/disable \
+         /sys/devices/virtual/workqueue/cpumask /proc/irq/default_smp_affinity \
+         /proc/sys/kernel/numa_balancing /proc/sys/kernel/perf_event_paranoid; do
+  echo "$f $(cat $f)" >> $SAVED
+done
+for f in /proc/irq/[0-9]*/smp_affinity_list; do
+  echo "$f $(cat $f)" >> $SAVED
+done
+
 cpupower frequency-set -g performance >/dev/null
 # Idle states: every state stays available on the reserved CPUs (benchmark
 # threads spin and never idle, so deep states cost them nothing); housekeeping
@@ -21,15 +34,6 @@ done
 # Services and user programs off the reserved CPUs. Benchmarks start with bench-run.
 for u in system.slice user.slice init.scope; do
   systemctl set-property --runtime "$u" AllowedCPUs=$HOUSE
-done
-
-# Save what we change, so bench-off restores it exactly.
-: > $SAVED
-for f in /sys/devices/virtual/workqueue/cpumask /proc/irq/default_smp_affinity /proc/sys/kernel/numa_balancing; do
-  echo "$f $(cat $f)" >> $SAVED
-done
-for f in /proc/irq/[0-9]*/smp_affinity_list; do
-  echo "$f $(cat $f)" >> $SAVED
 done
 
 # Unbound kernel work and interrupts off the reserved CPUs. Per-CPU device
@@ -54,4 +58,9 @@ done
 # the thread starts, stopping it for ~0.6 ms each time (lockfree-ipc note 005).
 echo 0 > /proc/sys/kernel/numa_balancing
 
-echo "bench mode ON: performance governor, housekeeping CPUs capped at C1, uncore at max, NUMA balancing off, CPUs 2-21,46-65 reserved"
+# Counter access: a benchmark may count its own CPU events (branch
+# mispredictions per episode: fix-order-gateway note 009). Ubuntu's 4 forbids
+# it; 2 allows user-space counting of one's own processes, nothing more.
+echo 2 > /proc/sys/kernel/perf_event_paranoid
+
+echo "bench mode ON: performance governor, housekeeping CPUs capped at C1, uncore at max, NUMA balancing off, own-process counters allowed, CPUs 2-21,46-65 reserved"

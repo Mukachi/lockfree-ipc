@@ -76,7 +76,7 @@ struct environment {
     // NUMA
     std::vector<numa_node> numa;
     // Kernel
-    opt_str release, version, cmdline, thp, numa_balancing;
+    opt_str release, version, cmdline, thp, numa_balancing, perf_event_paranoid;
     std::map<std::string, std::string> vulnerabilities;
     // Placement: fence is the housekeeping set; reserved is online minus fence.
     opt_str fence_system, fence_user, cgroup, affinity;
@@ -197,6 +197,7 @@ inline environment capture_environment(const env_reader& rd, int argc = 0, char*
     e.cmdline = rd.read("/proc/cmdline");
     e.thp = detail::bracketed(rd.read("/sys/kernel/mm/transparent_hugepage/enabled"));
     e.numa_balancing = rd.read("/proc/sys/kernel/numa_balancing");
+    e.perf_event_paranoid = rd.read("/proc/sys/kernel/perf_event_paranoid");
     const std::string vul = "/sys/devices/system/cpu/vulnerabilities/";
     for (const auto& v : rd.list(vul))
         if (const auto s = rd.read(vul + v)) e.vulnerabilities[v] = *s;
@@ -375,6 +376,7 @@ inline void write_environment_block(json_writer& w, const environment& e, bool p
     w.member("cmdline", e.cmdline);
     w.member("thp", e.thp);
     w.member("numa_balancing", e.numa_balancing);
+    w.member("perf_event_paranoid", e.perf_event_paranoid);
     w.key("vulnerabilities");
     w.begin_object();
     for (const auto& [k, v] : e.vulnerabilities) w.member(k, v);

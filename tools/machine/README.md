@@ -9,8 +9,8 @@ refused unless they hold (design note 004).
 | File | Installed at | What it does |
 |---|---|---|
 | [`99-bench-isolation.cfg`](99-bench-isolation.cfg) | `/etc/default/grub.d/` | Boot-time isolation of the reserved CPUs: `nohz_full`, `rcu_nocbs`, `isolcpus=managed_irq,domain` (note 005). Then `update-grub` and reboot |
-| [`bench-on`](bench-on) | `/usr/local/bin/` | Performance governor, every idle state left available on the reserved CPUs (an idle hyper-thread sibling must reach a deep state; see below) and housekeeping CPUs capped at C1, uncore clock pinned at its maximum, services and user programs fenced off the reserved CPUs (systemd `AllowedCPUs`), unbound kernel work, interrupts and kernel threads moved off them, automatic NUMA balancing off. Saves what it changes |
-| [`bench-off`](bench-off) | `/usr/local/bin/` | Restores what `bench-on` saved. Idle states are not saved: it enables all of them, C3 included, which the kernel disables at boot on this CPU, so after `bench-off` the machine is not in its boot state until a reboot |
+| [`bench-on`](bench-on) | `/usr/local/bin/` | Performance governor, every idle state left available on the reserved CPUs and housekeeping CPUs capped at C1 (see below), uncore clock pinned at its maximum, services and user programs fenced off the reserved CPUs (systemd `AllowedCPUs`), unbound kernel work, interrupts and kernel threads moved off them, automatic NUMA balancing off, `perf_event_paranoid` 2 (a benchmark may count its own CPU events). Saves what it changes, before changing it |
+| [`bench-off`](bench-off) | `/usr/local/bin/` | Restores what `bench-on` saved, idle states included (until 2026-10-22 it enabled every idle state, C3 too, which the kernel disables at boot on this CPU) |
 | [`bench-run`](bench-run) | `/usr/local/bin/` | Starts a benchmark outside the fence, as the calling user, so it can pin to the reserved CPUs |
 
 A measured run:
