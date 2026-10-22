@@ -7,11 +7,10 @@ SAVED=/run/bench.saved
 SAVED_KTHREADS=/run/bench.kthreads
 
 cpupower frequency-set -g performance >/dev/null
-# Idle states: deep states stay available on the reserved CPUs. Benchmark
-# threads spin and never idle; an idle hyper-thread sibling must reach a deep
-# state to give its core's shared resources back (capped at C1 it halved the
-# branch prediction a compute-bound thread could use: lockfree-ipc note 004,
-# Review 2026-10-22). Housekeeping CPUs stay capped at C1.
+# Idle states: every state stays available on the reserved CPUs (benchmark
+# threads spin and never idle, so deep states cost them nothing); housekeeping
+# CPUs are capped at C1. The cap on the reserved CPUs was lifted 2026-10-22 for
+# a reason later withdrawn (lockfree-ipc note 004, Review 2026-10-22).
 RESERVED=2-21,46-65
 cpupower -c $HOUSE idle-set -D 3 >/dev/null
 cpupower -c $RESERVED idle-set -E >/dev/null
@@ -55,4 +54,4 @@ done
 # the thread starts, stopping it for ~0.6 ms each time (lockfree-ipc note 005).
 echo 0 > /proc/sys/kernel/numa_balancing
 
-echo "bench mode ON: performance governor, deep C-states off, uncore at max, NUMA balancing off, CPUs 2-21,46-65 reserved"
+echo "bench mode ON: performance governor, housekeeping CPUs capped at C1, uncore at max, NUMA balancing off, CPUs 2-21,46-65 reserved"
