@@ -56,6 +56,10 @@ def rng(values, fmt=ns):
     if not vals:
         return "–"
     lo, hi = fmt(min(vals)), fmt(max(vals))
+    if fmt is ns and min(vals) < 10_000 <= max(vals):  # one unit: "9,345–11.9 µs" reads as µs throughout
+        lo = f"{min(vals) / 1000:,.1f}"
+        hi = hi.removesuffix(" µs")
+        return lo if lo == hi else f"{lo}–{hi} µs"
     return lo if lo == hi else f"{lo}–{hi}"
 
 
